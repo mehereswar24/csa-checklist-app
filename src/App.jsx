@@ -17,7 +17,8 @@ import {
   Palette,
   Type,
   Check,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 
 const STORAGE_KEY = 'csa_checklist_app_state_v1';
@@ -39,6 +40,7 @@ export default function App() {
   const [activeSheet, setActiveSheet] = useState('Summary');
   const [saveNotification, setSaveNotification] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Theme & Font state
   const [themeId, setThemeId] = useState(() => {
@@ -60,7 +62,6 @@ export default function App() {
   const currentTheme = THEMES[themeId] || THEMES.indigo;
   const currentFont = FONTS[fontId] || FONTS.jakarta;
 
-  // Apply font family dynamically
   useEffect(() => {
     document.documentElement.style.setProperty('--font-primary', currentFont.family);
     document.documentElement.style.setProperty('--font-heading', currentFont.family);
@@ -69,7 +70,6 @@ export default function App() {
     } catch (e) {}
   }, [fontId, currentFont]);
 
-  // Persist theme
   useEffect(() => {
     try {
       localStorage.setItem(THEME_PREF_KEY, themeId);
@@ -192,103 +192,111 @@ export default function App() {
       className="flex h-screen w-screen overflow-hidden bg-[#f8fafc] text-slate-800 transition-colors"
       style={{ fontFamily: currentFont.family }}
     >
-      {/* Collapsible Left Sidebar */}
+      {/* Collapsible / Mobile Off-Canvas Sidebar */}
       <Sidebar
         sheets={allSheets}
         activeSheet={activeSheet}
-        onSelectSheet={setActiveSheet}
+        onSelectSheet={(sheet) => {
+          setActiveSheet(sheet);
+          setIsMobileSidebarOpen(false);
+        }}
         getSheetScore={getSheetScore}
         overallScore={computedData.computedOverallScore}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
         theme={currentTheme}
       />
 
-      {/* Main Content View */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Header Bar */}
         <header
           className={`${currentTheme.headerBg} text-white shrink-0 shadow-sm border-b ${currentTheme.headerBorder} no-print z-20 transition-all`}
         >
-          <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-            {/* Sidebar Toggle + Branding */}
-            <div className="flex items-center gap-3">
+          <div className="px-3 md:px-4 py-2.5 flex items-center justify-between gap-2 md:gap-3">
+            {/* Left: Hamburger (Mobile) + Collapse (Desktop) + Brand */}
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              {/* Mobile Hamburger Button */}
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-slate-200"
+                title="Open Navigation Menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              {/* Desktop Sidebar Toggle */}
               <button
                 onClick={handleToggleSidebar}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition"
+                className="hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition"
                 title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
               >
                 {isSidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
               </button>
 
               <div
-                className="text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs"
+                className="text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs shrink-0"
                 style={{ backgroundColor: currentTheme.primary }}
               >
                 <ShieldCheck className="w-4 h-4" />
               </div>
 
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm md:text-base tracking-tight text-white">
-                    Comprehensive Safety Audit (CSA)
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold text-xs sm:text-sm md:text-base tracking-tight text-white truncate">
+                    CSA Audit
                   </span>
-                  <span className="bg-white/10 text-slate-300 text-[10px] font-mono px-2 py-0.5 rounded-full hidden sm:inline">
-                    Modern Edition
+                  <span className="bg-white/10 text-slate-300 text-[9px] md:text-[10px] font-mono px-1.5 py-0.2 rounded-full hidden sm:inline">
+                    Excel Web
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-300 flex items-center gap-2">
-                  <span>Current: <strong className="text-white">{activeSheet}</strong></span>
-                  <span>•</span>
-                  <span>{data.cover_page.unit_location || 'Plant Unit'}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    {saveNotification ? 'Saving...' : 'Saved'}
-                  </span>
+                <div className="text-[10px] md:text-[11px] text-slate-300 flex items-center gap-1.5 truncate">
+                  <span className="truncate">Section: <strong className="text-white">{activeSheet}</strong></span>
                 </div>
               </div>
             </div>
 
-            {/* Right Action Controls */}
-            <div className="flex items-center gap-2.5">
+            {/* Right: Score KPI + Quick Action Controls */}
+            <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0">
               {/* Overall Score Badge */}
               <button
                 onClick={() => setActiveSheet('Summary')}
-                className="bg-white/10 hover:bg-white/15 transition px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-white/10 text-left"
+                className="bg-white/10 hover:bg-white/15 transition px-2 sm:px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border border-white/10 text-left"
                 title="View Gap Assessment Summary"
               >
-                <span className="text-slate-300 text-[10px] uppercase tracking-wider font-semibold">Benchmark:</span>
-                <span className="font-mono text-emerald-300 font-extrabold text-sm">
-                  {(computedData.computedOverallScore * 100).toFixed(1)}%
+                <span className="text-slate-300 text-[9px] uppercase tracking-wider font-semibold hidden sm:inline">Score:</span>
+                <span className="font-mono text-emerald-300 font-extrabold text-xs sm:text-sm">
+                  {(computedData.computedOverallScore * 100).toFixed(0)}%
                 </span>
               </button>
 
               {/* Theme & Font Customizer Trigger */}
               <button
                 onClick={() => setShowThemeModal(!showThemeModal)}
-                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-white/10 transition"
+                className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-white/10 transition"
                 title="Change Colors & Typography"
               >
                 <Palette className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Colors & Font</span>
+                <span className="hidden lg:inline">Theme</span>
               </button>
 
               {/* Export Excel Button */}
               <button
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-xs"
+                className="inline-flex items-center gap-1 text-white text-xs font-bold p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition shadow-xs"
                 style={{ backgroundColor: currentTheme.primary }}
                 title="Download updated .xlsx file"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Export Excel</span>
+                <span className="hidden md:inline">Export</span>
               </button>
 
-              {/* Print View */}
+              {/* Print View (Hidden on mobile) */}
               <button
                 onClick={handlePrint}
-                className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition"
+                className="hidden sm:inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2 py-1.5 rounded-lg transition"
                 title="Print Current Sheet"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -297,7 +305,7 @@ export default function App() {
               {/* Reset to Baseline */}
               <button
                 onClick={handleResetToBaseline}
-                className="inline-flex items-center gap-1 bg-white/10 hover:bg-rose-900/40 text-slate-300 hover:text-white text-xs px-2.5 py-1.5 rounded-lg transition"
+                className="inline-flex items-center gap-1 bg-white/10 hover:bg-rose-900/40 text-slate-300 hover:text-white text-xs p-1.5 sm:px-2 rounded-lg transition"
                 title="Reset to Excel Baseline"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -306,10 +314,10 @@ export default function App() {
           </div>
         </header>
 
-        {/* Theme & Font Customizer Popover / Modal */}
+        {/* Theme & Font Customizer Modal */}
         {showThemeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 no-print">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 no-print">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-5 md:p-6 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <Palette className="w-5 h-5 text-indigo-600" />
@@ -324,31 +332,31 @@ export default function App() {
               </div>
 
               {/* Color Palettes */}
-              <div className="mt-5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+              <div className="mt-4">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
                   Color Themes
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   {Object.values(THEMES).map((th) => {
                     const isSelected = themeId === th.id;
                     return (
                       <button
                         key={th.id}
                         onClick={() => setThemeId(th.id)}
-                        className={`p-3 rounded-xl border text-left flex flex-col gap-2 transition ${
+                        className={`p-2.5 rounded-xl border text-left flex flex-col gap-1.5 transition ${
                           isSelected
                             ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20'
                             : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-800">{th.name}</span>
-                          {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                          <span className="text-xs font-bold text-slate-800 truncate">{th.name}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="w-4 h-4 rounded-full shadow-xs" style={{ backgroundColor: th.primary }}></span>
-                          <span className="w-4 h-4 rounded-full shadow-xs" style={{ backgroundColor: th.tableHeaderBg }}></span>
-                          <span className="w-4 h-4 rounded-full shadow-xs" style={{ backgroundColor: th.accentColor }}></span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.primary }}></span>
+                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.tableHeaderBg }}></span>
+                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.accentColor }}></span>
                         </div>
                       </button>
                     );
@@ -357,11 +365,11 @@ export default function App() {
               </div>
 
               {/* Font Family Selection */}
-              <div className="mt-6">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <div className="mt-5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5 flex items-center gap-1.5">
                   <Type className="w-4 h-4 text-slate-500" /> Font Family
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {Object.values(FONTS).map((f) => {
                     const isSelected = fontId === f.id;
                     return (
@@ -379,7 +387,7 @@ export default function App() {
                             {f.name}
                           </span>
                           <span className="text-[10px] text-slate-400 block" style={{ fontFamily: f.family }}>
-                            The quick brown fox jumps over the lazy dog (670 Questions)
+                            Sample text preview for checklist (670 Questions)
                           </span>
                         </div>
                         {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
@@ -389,10 +397,10 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
                 <button
                   onClick={() => setShowThemeModal(false)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-xs"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition"
                 >
                   Done
                 </button>
@@ -402,7 +410,7 @@ export default function App() {
         )}
 
         {/* Scrollable Sheet Content View */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f8fafc]">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-[#f8fafc]">
           {activeSheet === 'Cover Page' && (
             <CoverPage data={data} onChange={setData} theme={currentTheme} />
           )}
