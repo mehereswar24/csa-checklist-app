@@ -364,10 +364,10 @@ export default function SummaryDashboard({
             ? 'rgba(203, 213, 225, 0.4)'
             : p.division === 'FD'
             ? 'rgba(168, 85, 247, 0.85)'
-            : 'rgba(59, 130, 246, 0.85)'
+            : 'rgba(0, 147, 221, 0.85)'
         ),
         borderColor: elementPlantScores.map((p) =>
-          !p.isAvailable ? '#cbd5e1' : p.division === 'FD' ? '#9333ea' : '#2563eb'
+          !p.isAvailable ? '#cbd5e1' : p.division === 'FD' ? '#9333ea' : '#0093dd'
         ),
         borderWidth: 1.5,
         borderRadius: 4
@@ -472,15 +472,15 @@ export default function SummaryDashboard({
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* CARD 1: ORG MATURITY (OVERALL) */}
-        <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden border border-indigo-800/60 flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="bg-gradient-to-br from-[#003865] via-[#002242] to-[#001426] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden border border-[#0093dd]/40 flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#0093dd]/20 rounded-full blur-2xl pointer-events-none" />
           
           <div>
             <h3 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-indigo-400" />
+              <Building2 className="w-5 h-5 text-[#0093dd]" />
               Granules EHS Maturity
             </h3>
-            <p className="text-xs text-indigo-200/70 mt-1">
+            <p className="text-xs text-sky-200/80 mt-1">
               Overall safety maturity aggregated across all active API & Finished Dosage manufacturing units.
             </p>
 
@@ -488,13 +488,13 @@ export default function SummaryDashboard({
               <span className="text-4xl font-black font-mono tracking-tight text-white">
                 {orgMetrics.postCapaPct.toFixed(1)}%
               </span>
-              <span className="text-sm font-mono text-indigo-300">
+              <span className="text-sm font-mono text-sky-200">
                 ({orgMetrics.avgScore.toFixed(2)} / 4.0)
               </span>
             </div>
 
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#0093dd]/20 text-[#0093dd] border border-[#0093dd]/40">
                 {orgMetrics.maturity.level}: {orgMetrics.maturity.criteria}
               </span>
               <span className="text-xs text-emerald-400 font-semibold font-mono">
@@ -503,29 +503,29 @@ export default function SummaryDashboard({
             </div>
           </div>
 
-          <div className="mt-6 pt-5 border-t border-indigo-800/50">
-            <div className="flex justify-between text-xs text-indigo-200/80 mb-1.5 font-medium">
+          <div className="mt-6 pt-5 border-t border-[#004b80]/50">
+            <div className="flex justify-between text-xs text-sky-200/80 mb-1.5 font-medium">
               <span>Baseline: {orgMetrics.baselinePct.toFixed(1)}%</span>
               <span>Target: 86.0% (Level-V)</span>
             </div>
-            <div className="w-full bg-indigo-950/80 rounded-full h-2.5 overflow-hidden border border-indigo-700/50">
+            <div className="w-full bg-[#00172d] rounded-full h-2.5 overflow-hidden border border-[#003b68]">
               <div
-                className="bg-gradient-to-r from-indigo-400 to-emerald-400 h-full rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-[#0093dd] to-emerald-400 h-full rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, orgMetrics.postCapaPct)}%` }}
               />
             </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-indigo-300/70">
-              <span>4 API Units â€¢ 2 FD Units</span>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-sky-200/70">
+              <span>4 API Units • 2 FD Units</span>
               <span className="text-amber-300/80">GLS Not Available Now</span>
             </div>
           </div>
         </div>
 
         {/* CARD 2: API MATURITY (UNITS 1, 2, 4, 5) */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-blue-300 transition">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-[#0093dd]/50 transition">
           <div>
             <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Factory className="w-5 h-5 text-blue-600" />
+              <Factory className="w-5 h-5 text-[#0093dd]" />
               API Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -533,7 +533,7 @@ export default function SummaryDashboard({
             </p>
 
             <div className="mt-5 flex items-baseline gap-3">
-              <span className="text-4xl font-black font-mono tracking-tight text-blue-700">
+              <span className="text-4xl font-black font-mono tracking-tight text-[#0093dd]">
                 {apiMetrics.postCapaPct.toFixed(1)}%
               </span>
               <span className="text-sm font-mono text-slate-400">
@@ -542,7 +542,7 @@ export default function SummaryDashboard({
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#0093dd]/10 text-[#0093dd] border border-[#0093dd]/30">
                 {apiMetrics.maturity.level}: {apiMetrics.maturity.criteria}
               </span>
               <span className="text-xs text-emerald-600 font-semibold font-mono">

@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_real_data_v6';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v7';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -43,7 +43,8 @@ export default function App() {
           parsed.units[0].name.includes('BPL') &&
           !parsed.units.find(u => u.id === 'unit_3') &&
           parsed.units.find(u => u.id === 'unit_7')?.available === false &&
-          parsed.units.find(u => u.id === 'unit_6')?.code === 'GGP'
+          parsed.units.find(u => u.id === 'unit_6')?.code === 'GGP' &&
+          parsed.logo === '/granules_logo.png'
         ) {
           return parsed;
         }
@@ -54,6 +55,7 @@ export default function App() {
     return initialData;
   });
 
+
   const [selectedUnitId, setSelectedUnitId] = useState('unit_1');
   const [activeSheet, setActiveSheet] = useState('Summary');
   const [saveNotification, setSaveNotification] = useState(false);
@@ -63,9 +65,10 @@ export default function App() {
   // Theme & Font state
   const [themeId, setThemeId] = useState(() => {
     try {
-      return localStorage.getItem(THEME_PREF_KEY) || 'indigo';
+      const saved = localStorage.getItem(THEME_PREF_KEY);
+      return (saved && THEMES[saved]) ? saved : 'granules';
     } catch (e) {
-      return 'indigo';
+      return 'granules';
     }
   });
 
@@ -77,7 +80,8 @@ export default function App() {
     }
   });
 
-  const currentTheme = THEMES[themeId] || THEMES.indigo;
+  const currentTheme = THEMES[themeId] || THEMES.granules || THEMES.indigo;
+
   const currentFont = FONTS[fontId] || FONTS.jakarta;
 
   useEffect(() => {
@@ -345,26 +349,34 @@ export default function App() {
               {isSidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
             </button>
 
-            <div
-              className="text-white p-1.5 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs shrink-0"
-              style={{ backgroundColor: currentTheme.primary }}
-            >
-              <ShieldCheck className="w-4 h-4" />
+            {/* Granules Official Logo */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="h-9 px-2 bg-white rounded-xl shadow-xs border border-white/20 flex items-center justify-center shrink-0">
+                <img
+                  src="/granules_logo.png"
+                  alt="Granules India Limited"
+                  className="h-6 w-auto max-w-[110px] object-contain"
+                />
+              </div>
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">
-                  Granules EHS Maturity
+                  Granules India Limited
                 </span>
-                <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-white/15 px-2 py-0.5 rounded-md text-indigo-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-[#0093dd] text-white px-2 py-0.5 rounded-md shadow-2xs">
+                  EHS Maturity
+                </span>
+                <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-white/15 px-2 py-0.5 rounded-md text-white/90">
                   6 Units
                 </span>
               </div>
               <p className="text-[10px] text-slate-300 hidden md:block truncate">
-                Safety Management System & Process Safety Gap Assessment Platform
+                Comprehensive Safety Audit (CSA) & Process Safety Management (PSM) Platform
               </p>
             </div>
+
           </div>
 
           {/* Center: Global Unit Selector Pill (Desktop / Tablet) */}

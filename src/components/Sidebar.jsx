@@ -159,23 +159,24 @@ export default function Sidebar({
           className={`h-14 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}
         >
           {(!isCollapsed || isMobileOpen) ? (
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
-                style={{ backgroundColor: theme.primary }}
-              >
-                <Layers className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="h-8 px-1.5 bg-white rounded-lg shadow-xs flex items-center justify-center shrink-0 border border-white/20">
+                <img
+                  src="/granules_logo.png"
+                  alt="Granules Logo"
+                  className="h-5 w-auto object-contain"
+                />
               </div>
               <div className="truncate">
                 <span className="text-xs font-bold text-white uppercase tracking-wider block">
                   Audit Sections
                 </span>
-                <span className="text-[10px] text-slate-400">19 Elements • 4 Modules</span>
+                <span className="text-[10px] text-[#0093dd] font-semibold">19 Elements • 4 Modules</span>
               </div>
             </div>
           ) : (
-            <div className="mx-auto">
-              <Layers className="w-5 h-5 text-indigo-400" />
+            <div className="mx-auto h-8 w-8 bg-white rounded-lg flex items-center justify-center p-1 shadow-xs border border-white/20">
+              <img src="/granules_logo.png" alt="Granules Logo" className="h-5 w-5 object-contain" />
             </div>
           )}
 

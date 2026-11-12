@@ -396,7 +396,7 @@ def main():
     ]
 
     final_data = {
-        "logo": "ORG_EHS_MATURITY",
+        "logo": "/granules_logo.png",
         "scoring_criteria": SCORING_CRITERIA,
         "maturity_levels": MATURITY_LEVELS,
         "elements_meta": elements_meta,

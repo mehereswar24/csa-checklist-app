@@ -105,8 +105,8 @@ export default function CoverPage({ data, onChange, theme }) {
             {logo ? (
               <img
                 src={logo}
-                alt="Audit Logo"
-                className="h-20 w-auto object-contain border border-slate-200/80 rounded-xl p-1.5 bg-white shadow-xs"
+                alt="Granules India Limited Logo"
+                className="h-20 w-auto max-w-[200px] object-contain border border-slate-200/80 rounded-xl p-2 bg-white shadow-xs"
               />
             ) : (
               <div className="h-20 w-24 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-xs font-bold text-slate-400">
@@ -114,8 +114,8 @@ export default function CoverPage({ data, onChange, theme }) {
               </div>
             )}
             <div>
-              <span className="text-[11px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded-md">
-                EHS & PSM Framework
+              <span className="text-[11px] font-bold tracking-wider uppercase bg-[#0093dd]/10 text-[#0093dd] border border-[#0093dd]/30 px-2.5 py-0.5 rounded-md">
+                Granules EHS & PSM Framework
               </span>
               <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1.5 tracking-tight">
                 {cp.title || 'Comprehensive Safety Audit'}
