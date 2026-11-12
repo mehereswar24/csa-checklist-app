@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_v2_data';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v3';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -36,7 +36,12 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.units && parsed.units.length === 6) {
+        if (
+          parsed &&
+          parsed.units &&
+          parsed.units.length === 6 &&
+          parsed.units[0].name.includes('BPL')
+        ) {
           return parsed;
         }
       }
