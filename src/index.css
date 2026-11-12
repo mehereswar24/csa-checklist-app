@@ -1,0 +1,39 @@
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Excel grid styling */
+.excel-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  vertical-align: top;
+}
+
+.excel-table th {
+  background-color: #244061;
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Tab bar active indicator */
+.tab-active {
+  background-color: #ffffff !important;
+  color: #1b365d !important;
+  font-weight: 700;
+  border-bottom: 3px solid #2b5797 !important;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.06);
+}
+
+/* Custom transitions */
+.tab-btn {
+  transition: all 0.15s ease-in-out;
+}

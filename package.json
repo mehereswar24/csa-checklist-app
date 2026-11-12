@@ -1,0 +1,23 @@
+{
+  "name": "csa-checklist-app",
+  "version": "1.0.0",
+  "description": "Comprehensive Safety Audit & Process Safety Management Web Application",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --port 3000"
+  },
+  "dependencies": {
+    "chart.js": "^4.6.1",
+    "lucide-react": "^1.72.0",
+    "react": "^19.3.1",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  }
+}
