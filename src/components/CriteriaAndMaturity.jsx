@@ -141,7 +141,7 @@ export default function CriteriaAndMaturity({
                   const m = unitMetrics[u.id];
                   return (
                     <option key={u.id} value={u.id}>
-                      {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                      {u.name} ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Pending'})
                     </option>
                   );
                 })}
@@ -165,11 +165,11 @@ export default function CriteriaAndMaturity({
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 flex items-center gap-3 mt-0.5">
-                  <span>Baseline: <strong className="text-slate-700">{selectedMetric.baselineScorePct.toFixed(1)}%</strong></span>
+                  <span>Baseline: <strong className="text-slate-700">{typeof selectedMetric.baselineScorePct === 'number' ? `${selectedMetric.baselineScorePct.toFixed(1)}%` : 'N/A'}</strong></span>
                   <span>•</span>
-                  <span>Post-CAPA: <strong className="text-emerald-700">{selectedMetric.postCapaScorePct.toFixed(1)}%</strong></span>
+                  <span>Post-CAPA: <strong className="text-emerald-700">{typeof selectedMetric.postCapaScorePct === 'number' ? `${selectedMetric.postCapaScorePct.toFixed(1)}%` : 'Pending'}</strong></span>
                   <span>•</span>
-                  <span>Gain: <strong className="text-indigo-700">+{selectedMetric.deltaPct.toFixed(1)}%</strong></span>
+                  <span>Gain: <strong className="text-indigo-700">+{typeof selectedMetric.deltaPct === 'number' ? `${selectedMetric.deltaPct.toFixed(1)}%` : '0.0%'}</strong></span>
                 </div>
               </div>
             </div>
@@ -283,7 +283,7 @@ export default function CriteriaAndMaturity({
                           >
                             <span className="font-semibold truncate max-w-[100px]">{u.code}</span>
                             <span className={`font-mono text-[11px] font-bold ${isThisSelected ? 'text-white' : 'text-emerald-700'}`}>
-                              {m ? `${m.postCapaScorePct.toFixed(1)}%` : ''}
+                              {m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
                             </span>
                           </button>
                         );
@@ -394,7 +394,7 @@ export default function CriteriaAndMaturity({
                                 >
                                   <span>{u.name}</span>
                                   <span className="text-[11px] font-mono font-bold text-emerald-700">
-                                    {m ? `${m.postCapaScorePct.toFixed(1)}%` : ''}
+                                    {m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
                                   </span>
                                 </button>
                               );
@@ -406,7 +406,7 @@ export default function CriteriaAndMaturity({
                           {isSelectedTier ? (
                             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              {selectedUnit.name} ({selectedMetric?.postCapaScorePct.toFixed(1)}%)
+                              {selectedUnit.name} ({typeof selectedMetric?.postCapaScorePct === 'number' ? `${selectedMetric.postCapaScorePct.toFixed(1)}%` : 'Pending'})
                             </span>
                           ) : (
                             <span className="text-xs text-slate-400">—</span>

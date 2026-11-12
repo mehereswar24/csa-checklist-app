@@ -378,7 +378,7 @@ export default function App() {
                 const m = unitMetrics[u.id];
                 return (
                   <option key={u.id} value={u.id} className="text-slate-800">
-                    {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                    {u.name} ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Audit Pending'})
                   </option>
                 );
               })}
@@ -444,7 +444,7 @@ export default function App() {
               const m = unitMetrics[u.id];
               return (
                 <option key={u.id} value={u.id} className="text-slate-800">
-                  {u.code}: {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                  {u.code}: {u.name} ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Audit Pending'})
                 </option>
               );
             })}

@@ -256,7 +256,7 @@ export default function Sidebar({
                     {(!isCollapsed || isMobileOpen) && (
                       <div className="flex-1 text-left flex items-center justify-between min-w-0">
                         <span className="truncate">{sec.label}</span>
-                        {sec.id === 'Summary' && (
+                        {sec.id === 'Summary' && typeof currentMetric?.postCapaScorePct === 'number' && (
                           <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded shadow-2xs">
                             {currentMetric.postCapaScorePct.toFixed(1)}%
                           </span>
@@ -339,7 +339,9 @@ export default function Sidebar({
                 {unitMetrics[selectedUnitId]?.unitName || selectedUnitId}
               </span>
               <span className="font-mono font-bold text-indigo-300">
-                {currentMetric.postCapaScorePct.toFixed(1)}%
+                {typeof currentMetric?.postCapaScorePct === 'number'
+                  ? `${currentMetric.postCapaScorePct.toFixed(1)}%`
+                  : 'N/A'}
               </span>
             </div>
           </div>

@@ -17,6 +17,7 @@ import {
   Award,
   ArrowUpRight,
   CheckCircle,
+  CheckCircle2,
   BarChart3,
   Building2,
   TrendingUp,
@@ -872,7 +873,7 @@ export default function SummaryDashboard({
                               >
                                 <span>{u.code}</span>
                                 <span className={isSelected ? 'text-indigo-200' : 'text-slate-500'}>
-                                  ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                                  ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Pending'})
                                 </span>
                               </button>
                             );
@@ -1171,7 +1172,7 @@ export default function SummaryDashboard({
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-bold font-mono text-slate-800">
-                {selectedElement?.orgAvgPct !== null ? `${selectedElement.orgAvgPct.toFixed(1)}%` : 'N/A'}
+                {typeof selectedElement?.orgAvgPct === 'number' ? `${selectedElement.orgAvgPct.toFixed(1)}%` : 'N/A'}
               </span>
               <span className="text-[11px] text-slate-500 font-medium">All Plants</span>
             </div>
@@ -1183,7 +1184,7 @@ export default function SummaryDashboard({
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-bold font-mono text-blue-700">
-                {selectedElement?.apiAvgPct !== null ? `${selectedElement.apiAvgPct.toFixed(1)}%` : 'N/A'}
+                {typeof selectedElement?.apiAvgPct === 'number' ? `${selectedElement.apiAvgPct.toFixed(1)}%` : 'N/A'}
               </span>
               <span className="text-[11px] text-blue-500 font-medium">4 API Plants</span>
             </div>
@@ -1195,7 +1196,7 @@ export default function SummaryDashboard({
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-xl font-bold font-mono text-purple-700">
-                {selectedElement?.fdAvgPct !== null ? `${selectedElement.fdAvgPct.toFixed(1)}%` : 'N/A'}
+                {typeof selectedElement?.fdAvgPct === 'number' ? `${selectedElement.fdAvgPct.toFixed(1)}%` : 'N/A'}
               </span>
               <span className="text-[11px] text-purple-500 font-medium">Unit-6 GGP</span>
             </div>
@@ -1207,7 +1208,9 @@ export default function SummaryDashboard({
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-base font-bold font-mono text-emerald-800 truncate">
-                {topPlantForElement ? `${topPlantForElement.code} (${topPlantForElement.postCapaPct.toFixed(1)}%)` : 'N/A'}
+                {topPlantForElement && typeof topPlantForElement.postCapaPct === 'number'
+                  ? `${topPlantForElement.code} (${topPlantForElement.postCapaPct.toFixed(1)}%)`
+                  : 'N/A'}
               </span>
             </div>
           </div>
@@ -1841,9 +1844,9 @@ export default function SummaryDashboard({
                 </span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold font-mono text-slate-800">
-                    {currentMetric.baselineScorePct !== null ? `${currentMetric.baselineScorePct.toFixed(1)}%` : 'N/A'}
+                    {typeof currentMetric.baselineScorePct === 'number' ? `${currentMetric.baselineScorePct.toFixed(1)}%` : 'N/A'}
                   </span>
-                  {currentMetric.baselineAvgScore !== null && (
+                  {typeof currentMetric.baselineAvgScore === 'number' && (
                     <span className="text-xs font-mono text-slate-400">
                       ({currentMetric.baselineAvgScore.toFixed(2)}/4.0)
                     </span>
@@ -1857,9 +1860,9 @@ export default function SummaryDashboard({
                 </span>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold font-mono text-indigo-700">
-                    {currentMetric.postCapaScorePct !== null ? `${currentMetric.postCapaScorePct.toFixed(1)}%` : 'N/A'}
+                    {typeof currentMetric.postCapaScorePct === 'number' ? `${currentMetric.postCapaScorePct.toFixed(1)}%` : 'N/A'}
                   </span>
-                  {currentMetric.postCapaAvgScore !== null && (
+                  {typeof currentMetric.postCapaAvgScore === 'number' && (
                     <span className="text-xs font-mono text-indigo-500">
                       ({currentMetric.postCapaAvgScore.toFixed(2)}/4.0)
                     </span>
@@ -1871,9 +1874,9 @@ export default function SummaryDashboard({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
                   CAPA Improvement Delta
                 </span>
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-line gap-2">
                   <span className="text-2xl font-bold font-mono text-emerald-700">
-                    +{currentMetric.deltaPct !== null ? currentMetric.deltaPct.toFixed(1) : '0.0'}%
+                    +{typeof currentMetric.deltaPct === 'number' ? currentMetric.deltaPct.toFixed(1) : '0.0'}%
                   </span>
                   <span className="text-xs text-emerald-600 font-medium">Post-CAPA Gain</span>
                 </div>
