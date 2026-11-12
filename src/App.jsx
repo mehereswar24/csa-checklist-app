@@ -349,13 +349,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* Center: Global Unit Selector Pill */}
-            <div className="flex items-center bg-white/10 hover:bg-white/15 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-white/15 transition">
+            {/* Center: Global Unit Selector Pill (Desktop / Tablet) */}
+            <div className="hidden sm:flex items-center bg-white/10 hover:bg-white/15 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-white/15 transition max-w-xs md:max-w-sm">
               <Building2 className="w-3.5 h-3.5 text-indigo-200 shrink-0 mr-1.5" />
               <select
                 value={selectedUnitId}
                 onChange={(e) => setSelectedUnitId(e.target.value)}
-                className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-1"
+                className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-1 truncate"
               >
                 {data.units.map((u) => {
                   const m = unitMetrics[u.id];
@@ -410,6 +410,28 @@ export default function App() {
                 <span className="hidden xl:inline">Reset</span>
               </button>
             </div>
+          </div>
+
+          {/* Dedicated Mobile Sub-header for Unit Selection (Zero Overlap with Hamburger Menu) */}
+          <div className="sm:hidden px-3 py-2 bg-black/25 border-t border-white/10 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5 text-xs text-indigo-200 font-semibold shrink-0">
+              <Building2 className="w-3.5 h-3.5" />
+              <span className="text-[11px] uppercase tracking-wider text-slate-300">Unit:</span>
+            </div>
+            <select
+              value={selectedUnitId}
+              onChange={(e) => setSelectedUnitId(e.target.value)}
+              className="flex-1 bg-white/15 text-white font-bold text-xs rounded-lg px-2.5 py-1.5 outline-none border border-white/20 cursor-pointer shadow-inner"
+            >
+              {data.units.map((u) => {
+                const m = unitMetrics[u.id];
+                return (
+                  <option key={u.id} value={u.id} className="text-slate-800">
+                    {u.code}: {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                  </option>
+                );
+              })}
+            </select>
           </div>
         </header>
 

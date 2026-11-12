@@ -144,13 +144,18 @@ export default function Sidebar({
         />
       )}
 
-      {/* Sidebar Container */}
+      {/* Floating Sidebar Container */}
       <aside
         className={`
-          ${theme.sidebarBg} text-slate-200 border-r ${theme.sidebarBorder}
+          ${theme.sidebarBg} text-slate-200 border ${theme.sidebarBorder}
           flex flex-col select-none transition-all duration-300 ease-in-out
-          fixed md:relative inset-y-0 left-0 z-50 md:z-30 h-full
-          ${isMobileOpen ? 'translate-x-0 w-80 shadow-2xl' : '-translate-x-full md:translate-x-0'}
+          fixed md:relative z-50 md:z-30
+          ${
+            isMobileOpen
+              ? 'inset-y-2 left-2 w-[calc(100vw-1rem)] max-w-xs rounded-2xl shadow-2xl'
+              : '-translate-x-full md:translate-x-0'
+          }
+          md:my-3 md:ml-3 md:h-[calc(100vh-1.5rem)] md:rounded-2xl md:shadow-xl md:shrink-0 overflow-hidden
           ${isCollapsed ? 'md:w-16' : 'md:w-72 lg:w-80'}
         `}
       >
@@ -219,8 +224,11 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Navigation Links Scrollable List */}
-        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        {/* Navigation Links Scrollable List (No visible scrollbar slider) */}
+        <div
+          className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {/* Main Sections */}
           <div>
             {(!isCollapsed || isMobileOpen) && (

@@ -15,6 +15,14 @@ export function useTableResize(initialWidths, storageKey = null) {
 
   const [activeResizer, setActiveResizer] = useState(null);
 
+  // Failsafe cleanup: reset cursor and userSelect on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
   // Save to localStorage when widths change
   useEffect(() => {
     if (storageKey) {
@@ -25,22 +33,40 @@ export function useTableResize(initialWidths, storageKey = null) {
   }, [widths, storageKey]);
 
   const handleMouseDown = useCallback((colKey, e, minWidth = 50) => {
-    e.preventDefault();
-    e.stopPropagation();
+    // Failsafe if invoked without proper parameters
+    let key = colKey;
+    let evt = e;
 
-    const startX = e.clientX;
-    const startWidth = widths[colKey] || 100;
-    setActiveResizer(colKey);
+    if (!evt && colKey && colKey.clientX !== undefined) {
+      // Event was passed as first argument
+      evt = colKey;
+      key = null;
+    }
 
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    if (evt && evt.preventDefault) {
+      try {
+        evt.preventDefault();
+        evt.stopPropagation();
+      } catch (err) {}
+    }
+
+    if (!key) return;
+
+    const startX = evt ? evt.clientX : 0;
+    const startWidth = widths[key] || initialWidths[key] || 100;
+    setActiveResizer(key);
+
+    try {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } catch (err) {}
 
     const handleMouseMove = (moveEvent) => {
       const deltaX = moveEvent.clientX - startX;
       const newWidth = Math.max(minWidth, startWidth + deltaX);
       setWidths((prev) => ({
         ...prev,
-        [colKey]: newWidth
+        [key]: newWidth
       }));
     };
 
@@ -50,14 +76,18 @@ export function useTableResize(initialWidths, storageKey = null) {
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointerup', handleMouseUp);
+      window.removeEventListener('blur', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [widths]);
+    document.addEventListener('pointerup', handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
+  }, [widths, initialWidths]);
 
   const handleDoubleClick = useCallback((colKey) => {
-    if (initialWidths[colKey]) {
+    if (typeof colKey === 'string' && initialWidths[colKey]) {
       setWidths((prev) => ({
         ...prev,
         [colKey]: initialWidths[colKey]
@@ -68,7 +98,9 @@ export function useTableResize(initialWidths, storageKey = null) {
   const resetAll = useCallback(() => {
     setWidths(initialWidths);
     if (storageKey) {
-      localStorage.removeItem(`csa_col_widths_${storageKey}`);
+      try {
+        localStorage.removeItem(`csa_col_widths_${storageKey}`);
+      } catch (e) {}
     }
   }, [initialWidths, storageKey]);
 
@@ -84,17 +116,17 @@ export function useTableResize(initialWidths, storageKey = null) {
 /**
  * Excel-Style Resize Handle component
  */
-export function ResizeHandle({ onMouseDown, onDoubleClick, active = false }) {
+export function ResizeHandle({ columnId, onMouseDown, onDoubleClick, isActive = false }) {
   return (
     <div
-      onMouseDown={onMouseDown}
-      onDoubleClick={onDoubleClick}
-      className={`absolute right-0 top-0 bottom-0 w-2.5 cursor-col-resize select-none z-20 group transition-colors ${
-        active ? 'bg-indigo-400' : 'hover:bg-indigo-400/80'
+      onMouseDown={(e) => onMouseDown && onMouseDown(columnId, e)}
+      onDoubleClick={() => onDoubleClick && onDoubleClick(columnId)}
+      className={`absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none z-20 group transition-colors touch-none ${
+        isActive ? 'bg-indigo-500' : 'hover:bg-indigo-400/80'
       }`}
       title="Drag to resize column (Double-click to reset)"
     >
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-white/40 group-hover:bg-white transition-colors" />
+      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-slate-400/60 group-hover:bg-indigo-600 transition-colors pointer-events-none" />
     </div>
   );
 }

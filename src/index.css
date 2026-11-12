@@ -2,6 +2,24 @@
   * {
     box-sizing: border-box;
   }
+  body {
+    cursor: default;
+  }
+  button, select, input[type="button"], input[type="submit"] {
+    cursor: pointer;
+  }
+}
+
+/* Hide scrollbar for clean UI */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
 /* Excel grid styling */
