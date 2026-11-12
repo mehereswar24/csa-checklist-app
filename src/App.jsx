@@ -324,13 +324,13 @@ export default function App() {
       className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 transition-colors"
       style={{ fontFamily: currentFont.family }}
     >
-      {/* 1. Global Top Navigation Bar (Unified full-width header) */}
+      {/* 1. Global Top Navigation Bar */}
       <header
         className={`${currentTheme.headerBg} text-white shrink-0 shadow-sm border-b ${currentTheme.headerBorder} no-print z-30 transition-all`}
       >
-        <div className="px-3 md:px-5 py-2.5 flex items-center justify-between gap-2 md:gap-4">
-          {/* Left: Mobile Hamburger + Desktop Sidebar Toggle + Brand */}
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <div className="px-3 md:px-6 py-2.5 flex items-center justify-between gap-4">
+          {/* Brand & Mobile Hamburger */}
+          <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
@@ -338,15 +338,6 @@ export default function App() {
               title="Open Navigation Menu"
             >
               <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Desktop Sidebar Toggle */}
-            <button
-              onClick={handleToggleSidebar}
-              className="hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition shrink-0"
-              title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            >
-              {isSidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
             </button>
 
             {/* Granules Official Logo */}
@@ -376,92 +367,7 @@ export default function App() {
                 Comprehensive Safety Audit (CSA) & Process Safety Management (PSM) Platform
               </p>
             </div>
-
           </div>
-
-          {/* Center: Global Unit Selector Pill (Desktop / Tablet) */}
-          <div className="hidden sm:flex items-center bg-white/10 hover:bg-white/15 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-white/15 transition max-w-xs md:max-w-sm">
-            <Building2 className="w-3.5 h-3.5 text-indigo-200 shrink-0 mr-1.5" />
-            <select
-              value={selectedUnitId}
-              onChange={(e) => setSelectedUnitId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-1 truncate"
-            >
-              {data.units.map((u) => {
-                const m = unitMetrics[u.id];
-                return (
-                  <option key={u.id} value={u.id} className="text-slate-800">
-                    {u.name} ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Audit Pending'})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Right: Actions (Theme, Font, Export, Print, Reset) */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Theme Customizer Trigger */}
-            <button
-              onClick={() => setShowThemeModal(true)}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Customize Theme & Fonts"
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Theme</span>
-            </button>
-
-            {/* Export to Excel */}
-            <button
-              onClick={handleExport}
-              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition"
-              title="Export active unit & multi-unit benchmarks to Excel (.xlsx)"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Excel</span>
-            </button>
-
-            {/* Print / PDF */}
-            <button
-              onClick={handlePrint}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Print or Save to PDF"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Print</span>
-            </button>
-
-            {/* Reset to Baseline */}
-            <button
-              onClick={handleResetToBaseline}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-200 text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Reset all audit data to default baseline"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">Reset</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Dedicated Mobile Sub-header for Unit Selection (Zero Overlap with Hamburger Menu) */}
-        <div className="sm:hidden px-3 py-2 bg-black/25 border-t border-white/10 flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-1.5 text-xs text-indigo-200 font-semibold shrink-0">
-            <Building2 className="w-3.5 h-3.5" />
-            <span className="text-[11px] uppercase tracking-wider text-slate-300">Unit:</span>
-          </div>
-          <select
-            value={selectedUnitId}
-            onChange={(e) => setSelectedUnitId(e.target.value)}
-            className="flex-1 bg-white/15 text-white font-bold text-xs rounded-lg px-2.5 py-1.5 outline-none border border-white/20 cursor-pointer shadow-inner"
-          >
-            {data.units.map((u) => {
-              const m = unitMetrics[u.id];
-              return (
-                <option key={u.id} value={u.id} className="text-slate-800">
-                  {u.code}: {u.name} ({m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : 'Audit Pending'})
-                </option>
-              );
-            })}
-          </select>
         </div>
       </header>
 
