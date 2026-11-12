@@ -158,7 +158,7 @@ export default function Sidebar({
         <div
           className={`h-14 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}
         >
-          {(!isCollapsed || isMobileOpen) ? (
+          {(!isCollapsed || isMobileOpen) && (
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="h-8 px-1.5 bg-white rounded-lg shadow-xs flex items-center justify-center shrink-0 border border-white/20">
                 <img
@@ -173,10 +173,6 @@ export default function Sidebar({
                 </span>
                 <span className="text-[10px] text-[#0093dd] font-semibold">19 Elements • 4 Modules</span>
               </div>
-            </div>
-          ) : (
-            <div className="mx-auto h-8 w-8 bg-white rounded-lg flex items-center justify-center p-1 shadow-xs border border-white/20">
-              <img src="/granules_logo.png" alt="Granules Logo" className="h-5 w-5 object-contain" />
             </div>
           )}
 
