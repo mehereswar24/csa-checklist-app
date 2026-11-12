@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_real_data_v5';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v6';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -42,7 +42,8 @@ export default function App() {
           parsed.units.length === 6 &&
           parsed.units[0].name.includes('BPL') &&
           !parsed.units.find(u => u.id === 'unit_3') &&
-          parsed.units.find(u => u.id === 'unit_7')?.available === false
+          parsed.units.find(u => u.id === 'unit_7')?.available === false &&
+          parsed.units.find(u => u.id === 'unit_6')?.code === 'GGP'
         ) {
           return parsed;
         }

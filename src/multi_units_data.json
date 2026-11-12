@@ -66,7 +66,7 @@
       "criteria": "Resilient Phase- World Class Safety Culture & Excellence",
       "range": "86% - 100%",
       "min": 0.86,
-      "max": 1.0
+      "max": 1
     }
   ],
   "elements_meta": [
@@ -48958,12 +48958,12 @@
     },
     {
       "id": "unit_6",
-      "code": "UNIT-6",
-      "name": "Unit-VI GGP (Gagillapur - FD)",
+      "code": "GGP",
+      "name": "GGP (Gagillapur - FD)",
       "division": "FD",
       "division_name": "Finished Dosage & Formulations (FD)",
       "cover_page": {
-        "title": "Comprehensive Safety Audit (CSA) Report - Unit-VI GGP (Gagillapur - FD)",
+        "title": "Comprehensive Safety Audit (CSA) Report - GGP (Gagillapur - FD)",
         "subtitle": "Safety Management System & Process Safety Management Gap Assessment",
         "document_no": "CSA-GGP-U6-2026-06",
         "unit_location": "Gagillapur (GGP), Hyderabad, Telangana",
@@ -49036,7 +49036,9 @@
             "designation": "Lead EHS Site Officer",
             "description": "Safety Representative"
           }
-        ]
+        ],
+        "unit_name": "GGP (Gagillapur - FD)",
+        "facility_name": "GGP (Gagillapur - FD)"
       },
       "checklists": [
         {
@@ -61154,12 +61156,12 @@
     },
     {
       "id": "unit_7",
-      "code": "UNIT-7",
-      "name": "Unit-VII GLS (Growth Lab Sterile - FD)",
+      "code": "GLS",
+      "name": "GLS (Growth Lab Sterile - FD)",
       "division": "FD",
       "division_name": "Finished Dosage & Formulations (FD)",
       "cover_page": {
-        "title": "Comprehensive Safety Audit (CSA) Report - Unit-VII GLS (Growth Lab Sterile - FD)",
+        "title": "Comprehensive Safety Audit (CSA) Report - GLS (Growth Lab Sterile - FD)",
         "subtitle": "Safety Management System & Process Safety Management Gap Assessment",
         "document_no": "CSA-GLS-U7-PENDING",
         "unit_location": "GLS Facility, Hyderabad, Telangana",
@@ -61171,9 +61173,10 @@
         "end_date": "2026-04-24",
         "auditors": [],
         "auditees": [],
-        "facility_name": "Unit-VII GLS (Growth Lab Sterile - FD)",
+        "facility_name": "GLS (Growth Lab Sterile - FD)",
         "total_score_baseline": "N/A",
-        "maturity_level_baseline": "Not Available Now"
+        "maturity_level_baseline": "Not Available Now",
+        "unit_name": "GLS (Growth Lab Sterile - FD)"
       },
       "checklists": [
         {

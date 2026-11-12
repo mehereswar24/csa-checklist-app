@@ -365,10 +365,10 @@ def main():
         score_multiplier=1.08
     )
 
-    # 2. FD Units (Finished Dosage: Unit 6 GGP, Unit 7 GLS)
+    # 2. FD Units (Finished Dosage: GGP, GLS)
     unit_6 = synthesize_unit(
-        code="UNIT-6",
-        name="Unit-VI GGP (Gagillapur - FD)",
+        code="GGP",
+        name="GGP (Gagillapur - FD)",
         division="FD",
         division_name="Finished Dosage & Formulations (FD)",
         location="Gagillapur (GGP), Hyderabad, Telangana",
@@ -378,8 +378,8 @@ def main():
     )
 
     unit_7 = create_empty_unit(
-        code="UNIT-7",
-        name="Unit-VII GLS (Growth Lab Sterile - FD)",
+        code="GLS",
+        name="GLS (Growth Lab Sterile - FD)",
         division="FD",
         division_name="Finished Dosage & Formulations (FD)",
         location="GLS Facility, Hyderabad, Telangana",
