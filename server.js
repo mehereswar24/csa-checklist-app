@@ -48,15 +48,22 @@ const server = http.createServer((req, res) => {
 });
 
 server.on('error', (err) => {
+  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Server error: ${err.stack || err}\n`);
   console.error('Server error:', err);
 });
 
 process.on('uncaughtException', (err) => {
+  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Uncaught Exception: ${err.stack || err}\n`);
   console.error('Uncaught Exception:', err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Unhandled Rejection: ${reason}\n`);
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('exit', (code) => {
+  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Process exit code: ${code}\n`);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
