@@ -64,6 +64,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Serving production build from: ${DIST_DIR}`);
 });
 
-// Keep event loop active
-process.stdin.resume();
+try {
+  process.stdin.on('error', () => {});
+  process.stdin.on('end', () => {});
+} catch (e) {}
+
+// Keep process running indefinitely
 setInterval(() => {}, 1000 * 60 * 60);

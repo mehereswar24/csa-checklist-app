@@ -196,18 +196,35 @@ export default function ComprehensiveSafetyAudit({
               <div className="text-center px-2">
                 <span className="text-[9px] uppercase font-bold text-slate-400 block">Baseline</span>
                 <span className="text-sm font-black font-mono text-slate-700">
-                  {(currentMetrics.baselineScore * 100).toFixed(1)}%
+                  {typeof currentMetrics.baselineScorePct === 'number'
+                    ? `${currentMetrics.baselineScorePct.toFixed(1)}%`
+                    : typeof currentMetrics.baselineScore === 'number'
+                    ? `${(currentMetrics.baselineScore * 100).toFixed(1)}%`
+                    : 'N/A'}
                 </span>
               </div>
               <div className="text-center px-2">
                 <span className="text-[9px] uppercase font-bold text-emerald-600 block">Post-CAPA</span>
                 <span className="text-sm font-black font-mono text-emerald-600">
-                  {(currentMetrics.capaScore * 100).toFixed(1)}%
+                  {typeof currentMetrics.postCapaScorePct === 'number'
+                    ? `${currentMetrics.postCapaScorePct.toFixed(1)}%`
+                    : typeof currentMetrics.capaScore === 'number'
+                    ? `${(currentMetrics.capaScore * 100).toFixed(1)}%`
+                    : 'Not Available'}
                 </span>
               </div>
             </div>
           </div>
         </div>
+
+        {currentUnit.available === false && (
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800 text-xs font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <div>
+              <strong>Audit Report Not Available Now:</strong> Comprehensive Safety Audit report for <strong>{currentUnit.name}</strong> is currently pending for this cycle. Assessment parameters will become active once the audit is conducted.
+            </div>
+          </div>
+        )}
 
         {/* Audit Details - Dropdown-Driven Parameters Grid */}
         <div className="mt-6">

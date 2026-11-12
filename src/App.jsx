@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_real_data_v4';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v5';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -41,7 +41,8 @@ export default function App() {
           parsed.units &&
           parsed.units.length === 6 &&
           parsed.units[0].name.includes('BPL') &&
-          !parsed.units.find(u => u.id === 'unit_3')
+          !parsed.units.find(u => u.id === 'unit_3') &&
+          parsed.units.find(u => u.id === 'unit_7')?.available === false
         ) {
           return parsed;
         }
@@ -128,6 +129,36 @@ export default function App() {
     const maturityLevels = data.maturity_levels || [];
 
     data.units.forEach((unit) => {
+      if (unit.available === false || unit.status === 'Not Available Now') {
+        metrics[unit.id] = {
+          unitId: unit.id,
+          unitName: unit.name,
+          unitCode: unit.code,
+          division: unit.division,
+          isAvailable: false,
+          baselineScorePct: null,
+          baselineAvgScore: null,
+          postCapaScorePct: null,
+          postCapaAvgScore: null,
+          deltaPct: null,
+          maturityLevel: { level: 'N/A', criteria: 'Not Available Now', range: 'N/A' },
+          elements: (unit.checklists || []).map((cl, index) => ({
+            s_no: index + 1,
+            element_name: cl.title || cl.sheet_name,
+            sheet_ref: cl.sheet_name,
+            baselineAvg: null,
+            baselinePct: null,
+            postCapaAvg: null,
+            postCapaPct: null,
+            deltaPct: null,
+            totalQuestions: cl.questions?.length || 0,
+            openCapaCount: 0,
+            verifiedCapaCount: 0
+          }))
+        };
+        return;
+      }
+
       const elementsList = [];
       let totalBaselinePct = 0;
       let totalPostCapaPct = 0;

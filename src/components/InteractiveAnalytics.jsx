@@ -285,17 +285,14 @@ export default function InteractiveAnalytics({
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {units.map((u, i) => {
-              const metrics = unitMetrics[u.id] || { postCapaScorePct: 0, deltaPct: 0, maturityLevel: { level: 'Level - I' } };
+              const isAvail = u.available !== false && u.status !== 'Not Available Now';
+              const metrics = unitMetrics[u.id] || {};
               const scorePct = typeof metrics.postCapaScorePct === 'number'
                 ? metrics.postCapaScorePct
-                : typeof metrics.capaScore === 'number'
-                ? metrics.capaScore * (metrics.capaScore <= 1 ? 100 : 1)
-                : 0;
+                : null;
               const delta = typeof metrics.deltaPct === 'number'
                 ? metrics.deltaPct
-                : typeof metrics.delta === 'number'
-                ? metrics.delta * (metrics.delta <= 1 ? 100 : 1)
-                : 0;
+                : null;
               const color = UNIT_COLORS[i % UNIT_COLORS.length];
               const isSelected = selectedUnitFilter === u.id;
 
@@ -306,11 +303,13 @@ export default function InteractiveAnalytics({
                   className={`cursor-pointer rounded-xl p-3.5 border transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group ${
                     isSelected
                       ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20'
+                      : !isAvail
+                      ? 'border-amber-200 bg-amber-50/30 hover:border-amber-300'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black font-mono text-white px-1.5 py-0.5 rounded shadow-2xs" style={{ backgroundColor: color.border }}>
+                    <span className="text-[10px] font-black font-mono text-white px-1.5 py-0.5 rounded shadow-2xs" style={{ backgroundColor: isAvail ? color.border : '#d97706' }}>
                       {u.code}
                     </span>
                     <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition" />
@@ -324,10 +323,10 @@ export default function InteractiveAnalytics({
                     <div>
                       <span className="text-[9px] text-slate-400 uppercase block">Score</span>
                       <span className="text-lg font-black font-mono text-slate-900">
-                        {scorePct.toFixed(1)}%
+                        {isAvail && scorePct !== null ? `${scorePct.toFixed(1)}%` : 'N/A'}
                       </span>
                     </div>
-                    {delta > 0 && (
+                    {isAvail && delta > 0 && (
                       <span className="text-[10px] font-bold font-mono text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded">
                         +{delta.toFixed(1)}%
                       </span>
@@ -335,7 +334,7 @@ export default function InteractiveAnalytics({
                   </div>
 
                   <div className="mt-1.5 text-[10px] font-semibold text-slate-500 truncate">
-                    {metrics.maturityLevel?.level || metrics.activeLevel?.level || 'Level - III'}
+                    {isAvail ? (metrics.maturityLevel?.level || 'Level - III') : 'Not Available Now'}
                   </div>
                 </div>
               );

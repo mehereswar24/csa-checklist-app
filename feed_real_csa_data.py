@@ -272,6 +272,42 @@ def extract_unit_data(unit_cfg):
         "checklists": checklists
     }
 
+def create_empty_unit(code, name, division, division_name, location, doc_no, base_unit):
+    print(f"Creating placeholder for {name} ({division}) - Not Available Now...")
+    u = copy.deepcopy(base_unit)
+    u_id = code.lower().replace("-", "_")
+    u["id"] = u_id
+    u["code"] = code
+    u["name"] = name
+    u["division"] = division
+    u["division_name"] = division_name
+    u["available"] = False
+    u["status"] = "Not Available Now"
+    u["cover_page"]["facility_name"] = name
+    u["cover_page"]["title"] = f"Comprehensive Safety Audit (CSA) Report - {name}"
+    u["cover_page"]["document_no"] = doc_no
+    u["cover_page"]["assessment_stage"] = "Audit Report Not Available Now"
+    u["cover_page"]["unit_location"] = location
+    u["cover_page"]["location"] = location
+    u["cover_page"]["hazard_classification"] = "Sterile Injectables & Formulations"
+    u["cover_page"]["total_score_baseline"] = "N/A"
+    u["cover_page"]["maturity_level_baseline"] = "Not Available Now"
+    u["cover_page"]["auditors"] = []
+    u["cover_page"]["auditees"] = []
+
+    for cl in u["checklists"]:
+        cl["initial_total"] = 0
+        cl["initial_compliance_score"] = 0
+        for q in cl["questions"]:
+            q["score"] = None
+            q["is_score_locked"] = False
+            q["observation"] = "Audit report not available now"
+            q["capa_action"] = ""
+            q["capa_score"] = None
+            q["capa_date"] = ""
+            q["capa_verification_score"] = None
+    return u
+
 def synthesize_unit(code, name, division, division_name, location, doc_no, base_unit, score_multiplier):
     print(f"Synthesizing {name} ({division})...")
     u = copy.deepcopy(base_unit)
@@ -341,15 +377,14 @@ def main():
         score_multiplier=1.20
     )
 
-    unit_7 = synthesize_unit(
+    unit_7 = create_empty_unit(
         code="UNIT-7",
         name="Unit-VII GLS (Growth Lab Sterile - FD)",
         division="FD",
         division_name="Finished Dosage & Formulations (FD)",
         location="GLS Facility, Hyderabad, Telangana",
-        doc_no="CSA-GLS-U7-2026-07",
-        base_unit=unit_1,
-        score_multiplier=1.28
+        doc_no="CSA-GLS-U7-PENDING",
+        base_unit=unit_1
     )
 
     # Note: Unit 3 is completely excluded as requested
@@ -379,7 +414,10 @@ def main():
 
     print(f"Done! Successfully generated {len(all_units)} units:")
     for u in all_units:
-        b_sum = sum(sum(q["score"] for q in c["questions"]) for c in u["checklists"])
+        if not u.get("available", True):
+            print(f"  [{u['division']}] {u['code']}: {u['name']} -> Not Available Now (Audit Pending)")
+            continue
+        b_sum = sum(sum((q["score"] or 0) for q in c["questions"]) for c in u["checklists"])
         q_sum = sum(len(c["questions"]) for c in u["checklists"])
         max_p = q_sum * 4
         pct = (b_sum / max_p) * 100 if max_p > 0 else 0

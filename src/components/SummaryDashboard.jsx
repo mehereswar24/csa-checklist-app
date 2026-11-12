@@ -31,7 +31,9 @@ import {
   Activity,
   RotateCcw,
   Sliders,
-  FileCheck2
+  FileCheck2,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
 
@@ -64,7 +66,7 @@ const UNIT_BENCHMARK_WIDTHS = {
   baseline: 120,
   postCapa: 120,
   delta: 100,
-  maturity: 140,
+  maturity: 150,
   action: 95
 };
 
@@ -79,7 +81,7 @@ const MATRIX_TABLE_WIDTHS = {
   unit4: 95,
   unit5: 95,
   unit6: 95,
-  unit7: 95,
+  unit7: 105,
   action: 85
 };
 
@@ -110,7 +112,7 @@ export default function SummaryDashboard({
     handleDoubleClick: handleUnitDblClick,
     resetAll: resetUnitWidths,
     activeResizer: unitActiveResizer
-  } = useTableResize(UNIT_BENCHMARK_WIDTHS, 'csa_unit_summary_widths_v2');
+  } = useTableResize(UNIT_BENCHMARK_WIDTHS, 'csa_unit_summary_widths_v3');
 
   const {
     widths: matrixWidths,
@@ -118,7 +120,7 @@ export default function SummaryDashboard({
     handleDoubleClick: handleMatrixDblClick,
     resetAll: resetMatrixWidths,
     activeResizer: matrixActiveResizer
-  } = useTableResize(MATRIX_TABLE_WIDTHS, 'csa_matrix_19_widths');
+  } = useTableResize(MATRIX_TABLE_WIDTHS, 'csa_matrix_19_widths_v3');
 
   const {
     widths: elemWidths,
@@ -126,9 +128,12 @@ export default function SummaryDashboard({
     handleDoubleClick: handleElemDblClick,
     resetAll: resetElemWidths,
     activeResizer: elemActiveResizer
-  } = useTableResize(ELEMENT_TABLE_WIDTHS, 'csa_summary_elem_widths_v2');
+  } = useTableResize(ELEMENT_TABLE_WIDTHS, 'csa_summary_elem_widths_v3');
 
   const getMaturityTier = (pct) => {
+    if (pct === null || pct === undefined) {
+      return { level: 'N/A', criteria: 'Not Available Now', badge: 'bg-slate-100 text-slate-600 border-slate-300' };
+    }
     const ratio = pct / 100;
     return (
       MATURITY_LEVELS.find((ml) => ratio >= ml.min && ratio <= ml.max) ||
@@ -137,90 +142,127 @@ export default function SummaryDashboard({
   };
 
   const getScoreTheme = (pct) => {
+    if (pct === null || pct === undefined) {
+      return { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', bar: '#94a3b8' };
+    }
     if (pct < 50) return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', bar: '#f43f5e' };
     if (pct < 75) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: '#f59e0b' };
     return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: '#10b981' };
   };
 
   // 1. Division groupings
+  // API: Units 1, 2, 4, 5
   const apiUnits = useMemo(
     () => units.filter((u) => u.division === 'API' || ['unit_1', 'unit_2', 'unit_4', 'unit_5'].includes(u.id)),
     [units]
   );
 
+  // FD: Unit 6 (GGP) and Unit 7 (GLS)
   const fdUnits = useMemo(
     () => units.filter((u) => u.division === 'FD' || ['unit_6', 'unit_7'].includes(u.id)),
     [units]
   );
 
-  // 2. Org Maturity Rollup
+  // Active (Available) Units filter
+  const activeUnits = useMemo(
+    () => units.filter((u) => u.available !== false && u.status !== 'Not Available Now'),
+    [units]
+  );
+
+  const activeApiUnits = useMemo(
+    () => apiUnits.filter((u) => u.available !== false && u.status !== 'Not Available Now'),
+    [apiUnits]
+  );
+
+  const activeFdUnits = useMemo(
+    () => fdUnits.filter((u) => u.available !== false && u.status !== 'Not Available Now'),
+    [fdUnits]
+  );
+
+  // 2. Org Maturity Rollup (Across active available units)
   const orgMetrics = useMemo(() => {
-    if (units.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    if (activeUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
     let sumPost = 0;
     let sumBase = 0;
-    units.forEach((u) => {
+    activeUnits.forEach((u) => {
       const m = unitMetrics[u.id];
-      if (m) {
-        sumPost += m.postCapaScorePct || 0;
+      if (m && typeof m.postCapaScorePct === 'number') {
+        sumPost += m.postCapaScorePct;
         sumBase += m.baselineScorePct || 0;
       }
     });
-    const avgPost = sumPost / units.length;
-    const avgBase = sumBase / units.length;
+    const avgPost = sumPost / activeUnits.length;
+    const avgBase = sumBase / activeUnits.length;
     return {
       postCapaPct: avgPost,
       baselinePct: avgBase,
       avgScore: (avgPost / 100) * 4,
       deltaPct: avgPost - avgBase,
-      maturity: getMaturityTier(avgPost)
+      maturity: getMaturityTier(avgPost),
+      activeCount: activeUnits.length,
+      totalCount: units.length
     };
-  }, [units, unitMetrics]);
+  }, [units, activeUnits, unitMetrics]);
 
   // 3. API Maturity Rollup (Units 1, 2, 4, 5)
   const apiMetrics = useMemo(() => {
-    if (apiUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    if (activeApiUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
     let sumPost = 0;
     let sumBase = 0;
-    apiUnits.forEach((u) => {
+    activeApiUnits.forEach((u) => {
       const m = unitMetrics[u.id];
-      if (m) {
-        sumPost += m.postCapaScorePct || 0;
+      if (m && typeof m.postCapaScorePct === 'number') {
+        sumPost += m.postCapaScorePct;
         sumBase += m.baselineScorePct || 0;
       }
     });
-    const avgPost = sumPost / apiUnits.length;
-    const avgBase = sumBase / apiUnits.length;
+    const avgPost = sumPost / activeApiUnits.length;
+    const avgBase = sumBase / activeApiUnits.length;
     return {
       postCapaPct: avgPost,
       baselinePct: avgBase,
       avgScore: (avgPost / 100) * 4,
       deltaPct: avgPost - avgBase,
-      maturity: getMaturityTier(avgPost)
+      maturity: getMaturityTier(avgPost),
+      activeCount: activeApiUnits.length,
+      totalCount: apiUnits.length
     };
-  }, [apiUnits, unitMetrics]);
+  }, [apiUnits, activeApiUnits, unitMetrics]);
 
-  // 4. FD Maturity Rollup (Unit 6 GGP, Unit 7 GLS)
+  // 4. FD Maturity Rollup (Unit 6 GGP active, Unit 7 GLS not available now)
   const fdMetrics = useMemo(() => {
-    if (fdUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    if (activeFdUnits.length === 0) {
+      return {
+        postCapaPct: null,
+        baselinePct: null,
+        avgScore: null,
+        deltaPct: 0,
+        maturity: { level: 'N/A', criteria: 'Not Available Now' },
+        activeCount: 0,
+        totalCount: fdUnits.length
+      };
+    }
     let sumPost = 0;
     let sumBase = 0;
-    fdUnits.forEach((u) => {
+    activeFdUnits.forEach((u) => {
       const m = unitMetrics[u.id];
-      if (m) {
-        sumPost += m.postCapaScorePct || 0;
+      if (m && typeof m.postCapaScorePct === 'number') {
+        sumPost += m.postCapaScorePct;
         sumBase += m.baselineScorePct || 0;
       }
     });
-    const avgPost = sumPost / fdUnits.length;
-    const avgBase = sumBase / fdUnits.length;
+    const avgPost = sumPost / activeFdUnits.length;
+    const avgBase = sumBase / activeFdUnits.length;
     return {
       postCapaPct: avgPost,
       baselinePct: avgBase,
       avgScore: (avgPost / 100) * 4,
       deltaPct: avgPost - avgBase,
-      maturity: getMaturityTier(avgPost)
+      maturity: getMaturityTier(avgPost),
+      activeCount: activeFdUnits.length,
+      totalCount: fdUnits.length
     };
-  }, [fdUnits, unitMetrics]);
+  }, [fdUnits, activeFdUnits, unitMetrics]);
 
   // 5. All Units 19 Elements Benchmark Matrix
   const matrix19Elements = useMemo(() => {
@@ -230,26 +272,32 @@ export default function SummaryDashboard({
     return firstUnit.checklists.map((cl, idx) => {
       const elemName = cl.sheet_name;
 
-      // Extract scores for each unit
       const unitScoresMap = {};
       let orgSum = 0;
+      let orgCount = 0;
       let apiSum = 0;
-      let fdSum = 0;
       let apiCount = 0;
+      let fdSum = 0;
       let fdCount = 0;
 
       units.forEach((u) => {
+        const isAvail = u.available !== false && u.status !== 'Not Available Now';
         const uElem = unitMetrics[u.id]?.elements?.[idx];
-        const pPct = uElem ? uElem.postCapaPct : 0;
+        const pPct = isAvail && uElem && typeof uElem.postCapaPct === 'number' ? uElem.postCapaPct : null;
+        
         unitScoresMap[u.id] = pPct;
-        orgSum += pPct;
 
-        if (['unit_1', 'unit_2', 'unit_4', 'unit_5'].includes(u.id) || u.division === 'API') {
-          apiSum += pPct;
-          apiCount++;
-        } else if (['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD') {
-          fdSum += pPct;
-          fdCount++;
+        if (isAvail && pPct !== null) {
+          orgSum += pPct;
+          orgCount++;
+
+          if (['unit_1', 'unit_2', 'unit_4', 'unit_5'].includes(u.id) || u.division === 'API') {
+            apiSum += pPct;
+            apiCount++;
+          } else if (['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD') {
+            fdSum += pPct;
+            fdCount++;
+          }
         }
       });
 
@@ -257,9 +305,9 @@ export default function SummaryDashboard({
         s_no: idx + 1,
         element_name: elemName,
         sheet_ref: cl.sheet_name,
-        orgAvgPct: units.length > 0 ? orgSum / units.length : 0,
-        apiAvgPct: apiCount > 0 ? apiSum / apiCount : 0,
-        fdAvgPct: fdCount > 0 ? fdSum / fdCount : 0,
+        orgAvgPct: orgCount > 0 ? orgSum / orgCount : null,
+        apiAvgPct: apiCount > 0 ? apiSum / apiCount : null,
+        fdAvgPct: fdCount > 0 ? fdSum / fdCount : null,
         unitScores: unitScoresMap
       };
     });
@@ -267,22 +315,27 @@ export default function SummaryDashboard({
 
   // Selected Unit Data
   const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0] || {};
+  const isCurrentUnitAvailable = currentUnit.available !== false && currentUnit.status !== 'Not Available Now';
   const currentMetric = unitMetrics[currentUnit.id] || {
-    baselineScorePct: 0,
-    baselineAvgScore: 0,
-    postCapaScorePct: 0,
-    postCapaAvgScore: 0,
-    deltaPct: 0,
+    baselineScorePct: null,
+    baselineAvgScore: null,
+    postCapaScorePct: null,
+    postCapaAvgScore: null,
+    deltaPct: null,
     maturityLevel: { level: 'Level - I', criteria: 'Initial', range: '1% - 25%' },
     elements: []
   };
 
-  // Charts data for selected unit
-  const baselineScores = currentMetric.elements.map((e) => Math.round(e.baselinePct * 10) / 10);
-  const postCapaScores = currentMetric.elements.map((e) => Math.round(e.postCapaPct * 10) / 10);
+  // Charts data for selected unit (if available)
+  const baselineScores = (currentMetric.elements || []).map((e) =>
+    typeof e.baselinePct === 'number' ? Math.round(e.baselinePct * 10) / 10 : 0
+  );
+  const postCapaScores = (currentMetric.elements || []).map((e) =>
+    typeof e.postCapaPct === 'number' ? Math.round(e.postCapaPct * 10) / 10 : 0
+  );
 
   const barChartData = {
-    labels: currentMetric.elements.map((e, idx) => `${idx + 1}. ${e.element_name.substring(0, 14)}..`),
+    labels: (currentMetric.elements || []).map((e, idx) => `${idx + 1}. ${e.element_name.substring(0, 14)}..`),
     datasets: [
       {
         label: 'Baseline Audit Score (%)',
@@ -329,7 +382,7 @@ export default function SummaryDashboard({
   };
 
   const radarChartData = {
-    labels: currentMetric.elements.map((e) =>
+    labels: (currentMetric.elements || []).map((e) =>
       e.element_name.length > 15 ? e.element_name.substring(0, 13) + '..' : e.element_name
     ),
     datasets: [
@@ -379,7 +432,7 @@ export default function SummaryDashboard({
               Enterprise Safety & Operational Maturity
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Multi-unit EHS benchmark across API Division (Units 1, 2, 4, 5) and Finished Dosage Division (Unit 6 GGP, Unit 7 GLS)
+              Multi-unit EHS benchmark across <strong className="text-blue-700 font-semibold">API Division (Units 1, 2, 4, 5)</strong> and <strong className="text-purple-700 font-semibold">Finished Dosage Division (Unit 6 GGP, Unit 7 GLS)</strong>
             </p>
           </div>
 
@@ -407,10 +460,14 @@ export default function SummaryDashboard({
                   className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-2"
                 >
                   {units.map((u) => {
+                    const isAvail = u.available !== false && u.status !== 'Not Available Now';
                     const m = unitMetrics[u.id];
                     return (
                       <option key={u.id} value={u.id}>
-                        {u.code} - {u.name.split('(')[0].trim()} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                        {u.code} - {u.name.split('(')[0].trim()}{' '}
+                        {isAvail && m?.postCapaScorePct !== null
+                          ? `(${m.postCapaScorePct.toFixed(1)}%)`
+                          : '(Not Available Now)'}
                       </option>
                     );
                   })}
@@ -435,14 +492,16 @@ export default function SummaryDashboard({
                 <Building2 className="w-3.5 h-3.5 text-indigo-400" />
                 Tier 1 â€¢ Enterprise Rollup
               </span>
-              <span className="text-[11px] font-mono text-indigo-300/80">6 Operating Units</span>
+              <span className="text-[11px] font-mono text-indigo-300/80">
+                {orgMetrics.activeCount} Active / {orgMetrics.totalCount} Total Units
+              </span>
             </div>
 
             <h3 className="text-xl font-extrabold text-white tracking-tight">
               Organization EHS Maturity
             </h3>
             <p className="text-xs text-indigo-200/70 mt-1">
-              Overall safety maturity aggregated across all API & FD manufacturing facilities.
+              Overall safety maturity aggregated across all active API & Finished Dosage manufacturing units.
             </p>
 
             <div className="mt-5 flex items-baseline gap-3">
@@ -454,7 +513,7 @@ export default function SummaryDashboard({
               </span>
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {orgMetrics.maturity.level}: {orgMetrics.maturity.criteria}
               </span>
@@ -477,7 +536,7 @@ export default function SummaryDashboard({
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] text-indigo-300/70">
               <span>4 API Units â€¢ 2 FD Units</span>
-              <span>19 Elements Assessed</span>
+              <span className="text-amber-300/80">Unit-7 GLS Not Available Now</span>
             </div>
           </div>
         </div>
@@ -490,14 +549,14 @@ export default function SummaryDashboard({
                 <Factory className="w-3.5 h-3.5 text-blue-600" />
                 Tier 2 â€¢ API Business Unit
               </span>
-              <span className="text-[11px] font-mono text-slate-400">4 Plants (1, 2, 4, 5)</span>
+              <span className="text-[11px] font-mono text-blue-600 font-bold">4 Operating Plants</span>
             </div>
 
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">
               API Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Active Pharmaceutical Ingredients (Bonthapalli, Jeedimetla, Visakhapatnam & Parawada).
+              Active Pharmaceutical Ingredients: <strong>Unit 1 (BPL)</strong>, <strong>Unit 2 (JDM)</strong>, <strong>Unit 4 (VSKP)</strong> & <strong>Unit 5 (Parawada)</strong>.
             </p>
 
             <div className="mt-5 flex items-baseline gap-3">
@@ -521,7 +580,7 @@ export default function SummaryDashboard({
 
           <div className="mt-6 pt-5 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-              API Operating Units
+              API Operating Units (Click to Focus)
             </span>
             <div className="grid grid-cols-2 gap-2">
               {apiUnits.map((u) => {
@@ -540,7 +599,7 @@ export default function SummaryDashboard({
                     <div className="flex items-center justify-between w-full">
                       <span className="font-bold text-slate-800">{u.code}</span>
                       <span className="font-mono font-bold text-blue-700">
-                        {m ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
+                        {m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-500 truncate mt-0.5">
@@ -561,41 +620,46 @@ export default function SummaryDashboard({
                 <Pill className="w-3.5 h-3.5 text-purple-600" />
                 Tier 3 â€¢ Finished Dosage (FD)
               </span>
-              <span className="text-[11px] font-mono text-slate-400">2 Plants (6 GGP, 7 GLS)</span>
+              <span className="text-[11px] font-mono text-purple-700 font-bold">2 Units (GGP & GLS)</span>
             </div>
 
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">
               FD Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Finished Dosage Formulations (Unit-VI GGP Gagillapur & Unit-VII GLS Growth Lab Sterile).
+              Finished Dosage Formulations: <strong>Unit 6 (GGP)</strong> and <strong>Unit 7 (GLS - Not Available Now)</strong>.
             </p>
 
             <div className="mt-5 flex items-baseline gap-3">
               <span className="text-4xl font-black font-mono tracking-tight text-purple-700">
-                {fdMetrics.postCapaPct.toFixed(1)}%
+                {fdMetrics.postCapaPct !== null ? `${fdMetrics.postCapaPct.toFixed(1)}%` : 'N/A'}
               </span>
-              <span className="text-sm font-mono text-slate-400">
-                ({fdMetrics.avgScore.toFixed(2)} / 4.0)
-              </span>
+              {fdMetrics.avgScore !== null && (
+                <span className="text-sm font-mono text-slate-400">
+                  ({fdMetrics.avgScore.toFixed(2)} / 4.0)
+                </span>
+              )}
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
                 {fdMetrics.maturity.level}: {fdMetrics.maturity.criteria}
               </span>
-              <span className="text-xs text-emerald-600 font-semibold font-mono">
-                +{fdMetrics.deltaPct.toFixed(1)}% CAPA Gain
-              </span>
+              {fdMetrics.deltaPct > 0 && (
+                <span className="text-xs text-emerald-600 font-semibold font-mono">
+                  +{fdMetrics.deltaPct.toFixed(1)}% CAPA Gain
+                </span>
+              )}
             </div>
           </div>
 
           <div className="mt-6 pt-5 border-t border-slate-100">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-              Finished Dosage (FD) Units
+              Finished Dosage Units (Click to Focus)
             </span>
             <div className="grid grid-cols-2 gap-2">
               {fdUnits.map((u) => {
+                const isAvail = u.available !== false && u.status !== 'Not Available Now';
                 const m = unitMetrics[u.id];
                 const isSelected = u.id === selectedUnitId;
                 return (
@@ -605,14 +669,22 @@ export default function SummaryDashboard({
                     className={`p-2 rounded-lg text-left border transition text-xs flex flex-col justify-between ${
                       isSelected
                         ? 'bg-purple-50/80 border-purple-400 shadow-xs'
-                        : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'
+                        : isAvail
+                        ? 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'
+                        : 'bg-amber-50/50 border-amber-200 hover:bg-amber-100/60'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="font-bold text-slate-800">{u.code}</span>
-                      <span className="font-mono font-bold text-purple-700">
-                        {m ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
-                      </span>
+                      {isAvail ? (
+                        <span className="font-mono font-bold text-purple-700">
+                          {m && typeof m.postCapaScorePct === 'number' ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">
+                          Not Available
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] text-slate-500 truncate mt-0.5">
                       {u.name.split('(')[1]?.replace(')', '') || u.name}
@@ -640,7 +712,7 @@ export default function SummaryDashboard({
                   All Units 19 Elements Benchmark Matrix
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Cross-comparison of EHS compliance across Organization Average, API Cluster, FD Cluster, and all 6 individual operating units.
+                  Multi-unit cross-comparison across Organization Average, API Cluster, FD Cluster, and all operating facilities.
                 </p>
               </div>
             </div>
@@ -659,7 +731,7 @@ export default function SummaryDashboard({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed text-xs min-w-[1100px]">
+          <table className="w-full text-left border-collapse table-fixed text-xs min-w-[1150px]">
             <thead>
               <tr className="bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                 <th
@@ -825,19 +897,31 @@ export default function SummaryDashboard({
                       </div>
                     </td>
                     <td className="px-3 py-3 border-r border-slate-200 text-center bg-indigo-50/40">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${orgTheme.bg} ${orgTheme.text} ${orgTheme.border}`}>
-                        {row.orgAvgPct.toFixed(1)}%
-                      </span>
+                      {row.orgAvgPct !== null ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${orgTheme.bg} ${orgTheme.text} ${orgTheme.border}`}>
+                          {row.orgAvgPct.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
                     </td>
                     <td className="px-3 py-3 border-r border-slate-200 text-center bg-blue-50/40">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${apiTheme.bg} ${apiTheme.text} ${apiTheme.border}`}>
-                        {row.apiAvgPct.toFixed(1)}%
-                      </span>
+                      {row.apiAvgPct !== null ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${apiTheme.bg} ${apiTheme.text} ${apiTheme.border}`}>
+                          {row.apiAvgPct.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
                     </td>
                     <td className="px-3 py-3 border-r border-slate-200 text-center bg-purple-50/40">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${fdTheme.bg} ${fdTheme.text} ${fdTheme.border}`}>
-                        {row.fdAvgPct.toFixed(1)}%
-                      </span>
+                      {row.fdAvgPct !== null ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${fdTheme.bg} ${fdTheme.text} ${fdTheme.border}`}>
+                          {row.fdAvgPct.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
                     </td>
                     {/* Unit 1 */}
                     <td className="px-3 py-3 border-r border-slate-200 text-center">
@@ -869,10 +953,10 @@ export default function SummaryDashboard({
                         {(row.unitScores['unit_6'] || 0).toFixed(1)}%
                       </span>
                     </td>
-                    {/* Unit 7 GLS */}
-                    <td className="px-3 py-3 border-r border-slate-200 text-center">
-                      <span className="font-mono font-semibold text-slate-700">
-                        {(row.unitScores['unit_7'] || 0).toFixed(1)}%
+                    {/* Unit 7 GLS (Not Available Now) */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center bg-amber-50/20">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200">
+                        Not Available
                       </span>
                     </td>
                     {/* Action */}
@@ -918,7 +1002,7 @@ export default function SummaryDashboard({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left border-collapse min-w-[950px]">
             <thead>
               <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
                 <th
@@ -1034,14 +1118,12 @@ export default function SummaryDashboard({
             <tbody className="divide-y divide-slate-200 text-sm">
               {units.map((u) => {
                 const isSelected = u.id === selectedUnitId;
-                const m = unitMetrics[u.id] || {
-                  baselineScorePct: 0,
-                  postCapaScorePct: 0,
-                  deltaPct: 0,
-                  maturityLevel: { level: 'Level - I' }
-                };
-                const themeCol = getScoreTheme(m.postCapaScorePct);
+                const isAvail = u.available !== false && u.status !== 'Not Available Now';
+                const m = unitMetrics[u.id] || {};
                 const isFD = ['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD';
+                const themeCol = isAvail && typeof m.postCapaScorePct === 'number'
+                  ? getScoreTheme(m.postCapaScorePct)
+                  : { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' };
 
                 return (
                   <tr
@@ -1050,18 +1132,22 @@ export default function SummaryDashboard({
                     className={`cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-indigo-50/70 font-medium'
-                        : 'hover:bg-slate-50/60'
+                        : isAvail
+                        ? 'hover:bg-slate-50/60'
+                        : 'bg-amber-50/30 hover:bg-amber-50/60'
                     }`}
                   >
                     <td className="px-4 py-3.5 border-r border-slate-200">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-300'}`} />
+                        <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-indigo-600' : isAvail ? 'bg-slate-300' : 'bg-amber-400'}`} />
                         <span className="font-mono text-xs font-bold text-slate-800">{u.code}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
                       <div className="font-semibold text-slate-900">{u.name}</div>
-                      <div className="text-xs text-slate-500">{u.cover_page?.assessment_stage || 'Annual Assessment'}</div>
+                      <div className="text-xs text-slate-500">
+                        {isAvail ? (u.cover_page?.assessment_stage || 'Annual Assessment') : 'Audit Report Pending / Not Available Now'}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200 text-center">
                       <span
@@ -1078,30 +1164,52 @@ export default function SummaryDashboard({
                       {u.cover_page?.location || u.location || 'Plant Site'}
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
-                      <div className="text-xs font-mono font-bold text-slate-600">
-                        {m.baselineScorePct.toFixed(1)}%
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        ({(m.baselineAvgScore || 0).toFixed(2)} / 4.0)
-                      </div>
+                      {isAvail && typeof m.baselineScorePct === 'number' ? (
+                        <>
+                          <div className="text-xs font-mono font-bold text-slate-600">
+                            {m.baselineScorePct.toFixed(1)}%
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            ({(m.baselineAvgScore || 0).toFixed(2)} / 4.0)
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono">N/A</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
-                      <div className="text-xs font-mono font-bold text-indigo-700">
-                        {m.postCapaScorePct.toFixed(1)}%
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        ({(m.postCapaAvgScore || 0).toFixed(2)} / 4.0)
-                      </div>
+                      {isAvail && typeof m.postCapaScorePct === 'number' ? (
+                        <>
+                          <div className="text-xs font-mono font-bold text-indigo-700">
+                            {m.postCapaScorePct.toFixed(1)}%
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            ({(m.postCapaAvgScore || 0).toFixed(2)} / 4.0)
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-amber-700 font-medium">Not Available</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
-                      <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        +{m.deltaPct.toFixed(1)}%
-                      </span>
+                      {isAvail && typeof m.deltaPct === 'number' ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          +{m.deltaPct.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${themeCol.bg} ${themeCol.text} ${themeCol.border}`}>
-                        {m.maturityLevel.level}
-                      </span>
+                      {isAvail && m.maturityLevel ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${themeCol.bg} ${themeCol.text} ${themeCol.border}`}>
+                          {m.maturityLevel.level}
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          Not Available Now
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <button
@@ -1136,6 +1244,11 @@ export default function SummaryDashboard({
               <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
                 {currentUnit.code}
               </span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                currentUnit.division === 'FD' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+                {currentUnit.division === 'FD' ? 'FD Division' : 'API Division'}
+              </span>
               <span className="text-xs text-slate-500">Focused Unit Analysis</span>
             </div>
             <h2 className="text-xl font-bold text-slate-900">{currentUnit.name}</h2>
@@ -1155,192 +1268,227 @@ export default function SummaryDashboard({
           </div>
         </div>
 
-        {/* Focused KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-              Baseline Audit Score
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-slate-800">
-                {currentMetric.baselineScorePct.toFixed(1)}%
-              </span>
-              <span className="text-xs font-mono text-slate-400">
-                ({currentMetric.baselineAvgScore.toFixed(2)}/4.0)
-              </span>
+        {/* If unit is not available now (e.g. Unit 7 GLS) */}
+        {!isCurrentUnitAvailable ? (
+          <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+              <Clock className="w-6 h-6" />
             </div>
-          </div>
-
-          <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 block mb-1">
-              Post-CAPA Effective Score
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-indigo-700">
-                {currentMetric.postCapaScorePct.toFixed(1)}%
-              </span>
-              <span className="text-xs font-mono text-indigo-500">
-                ({currentMetric.postCapaAvgScore.toFixed(2)}/4.0)
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
-              CAPA Improvement Delta
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono text-emerald-700">
-                +{currentMetric.deltaPct.toFixed(1)}%
-              </span>
-              <span className="text-xs text-emerald-600 font-medium">Post-CAPA Gain</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-              Unit Maturity Tier
-            </span>
-            <div className="mt-1">
-              <span className="inline-flex px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
-                {currentMetric.maturityLevel.level}: {currentMetric.maturityLevel.criteria}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dual Visual Charts */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-indigo-600" />
-              19 Elements Compliance Profile ({currentUnit.code})
+            <h3 className="text-lg font-bold text-slate-900">
+              {currentUnit.name} - Audit Report Not Available Now
             </h3>
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+            <p className="text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+              The Comprehensive Safety Audit (CSA) report for <strong>{currentUnit.code} ({currentUnit.name})</strong> is currently pending or not yet submitted for this cycle. Its 19 elements and scoring benchmarks will appear once the data is published.
+            </p>
+            <div className="pt-2">
               <button
-                onClick={() => setChartView('both')}
-                className={`px-2.5 py-1 rounded ${chartView === 'both' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                onClick={() => onSelectUnit('unit_6')}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm"
               >
-                Both
-              </button>
-              <button
-                onClick={() => setChartView('bar')}
-                className={`px-2.5 py-1 rounded ${chartView === 'bar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
-              >
-                Bar Chart
-              </button>
-              <button
-                onClick={() => setChartView('radar')}
-                className={`px-2.5 py-1 rounded ${chartView === 'radar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
-              >
-                Radar Profile
+                Switch to Available FD Facility: Unit-6 GGP
               </button>
             </div>
           </div>
-
-          <div className={`grid gap-6 ${chartView === 'both' ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
-            {(chartView === 'both' || chartView === 'bar') && (
-              <div className={`${chartView === 'both' ? 'lg:col-span-2' : ''} bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80`}>
-                <Bar data={barChartData} options={barChartOptions} />
+        ) : (
+          <>
+            {/* Focused KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Baseline Audit Score
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold font-mono text-slate-800">
+                    {currentMetric.baselineScorePct !== null ? `${currentMetric.baselineScorePct.toFixed(1)}%` : 'N/A'}
+                  </span>
+                  {currentMetric.baselineAvgScore !== null && (
+                    <span className="text-xs font-mono text-slate-400">
+                      ({currentMetric.baselineAvgScore.toFixed(2)}/4.0)
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-            {(chartView === 'both' || chartView === 'radar') && (
-              <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80 flex items-center justify-center">
-                <Radar data={radarChartData} options={radarChartOptions} />
+
+              <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 block mb-1">
+                  Post-CAPA Effective Score
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold font-mono text-indigo-700">
+                    {currentMetric.postCapaScorePct !== null ? `${currentMetric.postCapaScorePct.toFixed(1)}%` : 'N/A'}
+                  </span>
+                  {currentMetric.postCapaAvgScore !== null && (
+                    <span className="text-xs font-mono text-indigo-500">
+                      ({currentMetric.postCapaAvgScore.toFixed(2)}/4.0)
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Focused Unit Elements Breakdown Table */}
-        <div className="pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-slate-800">
-              {currentUnit.code} Element-by-Element Breakdown (19 Elements)
-            </h3>
-            <button
-              onClick={resetElemWidths}
-              className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
-            >
-              Reset Widths
-            </button>
-          </div>
+              <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
+                  CAPA Improvement Delta
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold font-mono text-emerald-700">
+                    +{currentMetric.deltaPct !== null ? currentMetric.deltaPct.toFixed(1) : '0.0'}%
+                  </span>
+                  <span className="text-xs text-emerald-600 font-medium">Post-CAPA Gain</span>
+                </div>
+              </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full text-left border-collapse min-w-[750px]">
-              <thead>
-                <tr className="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
-                  <th style={{ width: `${elemWidths.sl}px` }} className="px-3 py-2.5 border-r border-slate-200 text-center">
-                    #
-                  </th>
-                  <th style={{ width: `${elemWidths.elem}px` }} className="px-4 py-2.5 border-r border-slate-200">
-                    Element Name
-                  </th>
-                  <th style={{ width: `${elemWidths.baseline}px` }} className="px-4 py-2.5 border-r border-slate-200">
-                    Baseline Score
-                  </th>
-                  <th style={{ width: `${elemWidths.postCapa}px` }} className="px-4 py-2.5 border-r border-slate-200">
-                    Post-CAPA Score
-                  </th>
-                  <th style={{ width: `${elemWidths.delta}px` }} className="px-4 py-2.5 border-r border-slate-200">
-                    Delta
-                  </th>
-                  <th style={{ width: `${elemWidths.capaStats}px` }} className="px-4 py-2.5 border-r border-slate-200 text-center">
-                    CAPA Actions
-                  </th>
-                  <th style={{ width: `${elemWidths.action}px` }} className="px-3 py-2.5 text-center">
-                    Checklist
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
-                {currentMetric.elements.map((el) => {
-                  const elTheme = getScoreTheme(el.postCapaPct);
-                  return (
-                    <tr key={el.s_no} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-3 py-2.5 border-r border-slate-200 text-center font-bold text-slate-400">
-                        {el.s_no}
-                      </td>
-                      <td className="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">
-                        {el.element_name}
-                      </td>
-                      <td className="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">
-                        {el.baselinePct.toFixed(1)}% ({(el.baselineAvg || 0).toFixed(2)}/4)
-                      </td>
-                      <td className="px-4 py-2.5 border-r border-slate-200">
-                        <span className={`inline-flex px-2 py-0.5 rounded font-mono font-bold border ${elTheme.bg} ${elTheme.text} ${elTheme.border}`}>
-                          {el.postCapaPct.toFixed(1)}% ({(el.postCapaAvg || 0).toFixed(2)}/4)
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 border-r border-slate-200 font-mono font-semibold text-emerald-700">
-                        +{el.deltaPct.toFixed(1)}%
-                      </td>
-                      <td className="px-4 py-2.5 border-r border-slate-200 text-center">
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          {el.verifiedCapaCount > 0 ? (
-                            <span className="text-emerald-700 font-bold">{el.verifiedCapaCount} Verified</span>
-                          ) : el.openCapaCount > 0 ? (
-                            <span className="text-amber-700 font-bold">{el.openCapaCount} Open</span>
-                          ) : (
-                            <span className="text-slate-400">0 Actions</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button
-                          onClick={() => onSelectSheet(el.sheet_ref)}
-                          className="px-2 py-1 rounded text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition inline-flex items-center gap-1"
-                        >
-                          Open
-                        </button>
-                      </td>
+              <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Unit Maturity Tier
+                </span>
+                <div className="mt-1">
+                  <span className="inline-flex px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                    {currentMetric.maturityLevel?.level}: {currentMetric.maturityLevel?.criteria}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dual Visual Charts */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+                  19 Elements Compliance Profile ({currentUnit.code})
+                </h3>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+                  <button
+                    onClick={() => setChartView('both')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'both' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Both
+                  </button>
+                  <button
+                    onClick={() => setChartView('bar')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'bar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Bar Chart
+                  </button>
+                  <button
+                    onClick={() => setChartView('radar')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'radar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Radar Profile
+                  </button>
+                </div>
+              </div>
+
+              <div className={`grid gap-6 ${chartView === 'both' ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                {(chartView === 'both' || chartView === 'bar') && (
+                  <div className={`${chartView === 'both' ? 'lg:col-span-2' : ''} bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80`}>
+                    <Bar data={barChartData} options={barChartOptions} />
+                  </div>
+                )}
+                {(chartView === 'both' || chartView === 'radar') && (
+                  <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80 flex items-center justify-center">
+                    <Radar data={radarChartData} options={radarChartOptions} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Focused Unit Elements Breakdown Table */}
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-800">
+                  {currentUnit.code} Element-by-Element Breakdown (19 Elements)
+                </h3>
+                <button
+                  onClick={resetElemWidths}
+                  className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
+                >
+                  Reset Widths
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left border-collapse min-w-[750px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                      <th style={{ width: `${elemWidths.sl}px` }} className="px-3 py-2.5 border-r border-slate-200 text-center">
+                        #
+                      </th>
+                      <th style={{ width: `${elemWidths.elem}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                        Element Name
+                      </th>
+                      <th style={{ width: `${elemWidths.baseline}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                        Baseline Score
+                      </th>
+                      <th style={{ width: `${elemWidths.postCapa}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                        Post-CAPA Score
+                      </th>
+                      <th style={{ width: `${elemWidths.delta}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                        Delta
+                      </th>
+                      <th style={{ width: `${elemWidths.capaStats}px` }} className="px-4 py-2.5 border-r border-slate-200 text-center">
+                        CAPA Actions
+                      </th>
+                      <th style={{ width: `${elemWidths.action}px` }} className="px-3 py-2.5 text-center">
+                        Checklist
+                      </th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-xs">
+                    {(currentMetric.elements || []).map((el) => {
+                      const elTheme = getScoreTheme(el.postCapaPct);
+                      return (
+                        <tr key={el.s_no} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-3 py-2.5 border-r border-slate-200 text-center font-bold text-slate-400">
+                            {el.s_no}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">
+                            {el.element_name}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">
+                            {typeof el.baselinePct === 'number'
+                              ? `${el.baselinePct.toFixed(1)}% (${(el.baselineAvg || 0).toFixed(2)}/4)`
+                              : 'N/A'}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200">
+                            {typeof el.postCapaPct === 'number' ? (
+                              <span className={`inline-flex px-2 py-0.5 rounded font-mono font-bold border ${elTheme.bg} ${elTheme.text} ${elTheme.border}`}>
+                                {el.postCapaPct.toFixed(1)}% ({((el.postCapaAvg || 0)).toFixed(2)}/4)
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-mono">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-mono font-semibold text-emerald-700">
+                            +{typeof el.deltaPct === 'number' ? el.deltaPct.toFixed(1) : 0}%
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 text-center">
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {el.verifiedCapaCount > 0 ? (
+                                <span className="text-emerald-700 font-bold">{el.verifiedCapaCount} Verified</span>
+                              ) : el.openCapaCount > 0 ? (
+                                <span className="text-amber-700 font-bold">{el.openCapaCount} Open</span>
+                              ) : (
+                                <span className="text-slate-400">0 Actions</span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <button
+                              onClick={() => onSelectSheet(el.sheet_ref)}
+                              className="px-2 py-1 rounded text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition inline-flex items-center gap-1"
+                            >
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
