@@ -30,7 +30,9 @@ import {
   X,
   Building2,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -144,42 +146,46 @@ export default function Sidebar({
         />
       )}
 
-      {/* Floating Sidebar Container */}
+      {/* Floating Sidebar Panel */}
       <aside
         className={`
           ${theme.sidebarBg} text-slate-200 border ${theme.sidebarBorder}
-          flex flex-col select-none transition-all duration-300 ease-in-out
-          fixed md:relative z-50 md:z-30
+          flex flex-col select-none transition-all duration-300 ease-in-out h-full
           ${
             isMobileOpen
-              ? 'inset-y-2 left-2 w-[calc(100vw-1rem)] max-w-xs rounded-2xl shadow-2xl'
-              : '-translate-x-full md:translate-x-0'
+              ? 'fixed inset-y-2 left-2 z-50 w-[calc(100vw-1rem)] max-w-xs rounded-2xl shadow-2xl'
+              : 'hidden md:flex relative z-20 rounded-2xl shadow-sm'
           }
-          md:my-3 md:ml-3 md:h-[calc(100vh-1.5rem)] md:rounded-2xl md:shadow-xl md:shrink-0 overflow-hidden
+          shrink-0 overflow-hidden
           ${isCollapsed ? 'md:w-16' : 'md:w-72 lg:w-80'}
         `}
       >
-        {/* Sidebar Header with Org EHS Maturity Branding */}
+        {/* Sidebar Header (Navigation Context) */}
         <div
-          className={`h-16 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}
+          className={`h-14 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}
         >
-          {(!isCollapsed || isMobileOpen) && (
-            <div className="flex items-center gap-2.5 overflow-hidden">
+          {(!isCollapsed || isMobileOpen) ? (
+            <div className="flex items-center gap-2 overflow-hidden">
               <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md bg-indigo-600"
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
+                style={{ backgroundColor: theme.primary }}
               >
-                <ShieldCheck className="w-5 h-5 text-white" />
+                <Layers className="w-4 h-4 text-white" />
               </div>
               <div className="truncate">
-                <h1 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
-                  <span>Org EHS Maturity</span>
-                </h1>
-                <p className="text-[10px] text-indigo-300 font-medium">6 Units Audit Platform</p>
+                <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                  Audit Sections
+                </span>
+                <span className="text-[10px] text-slate-400">19 Elements • 4 Modules</span>
               </div>
+            </div>
+          ) : (
+            <div className="mx-auto">
+              <Layers className="w-5 h-5 text-indigo-400" />
             </div>
           )}
 
-          {/* Desktop Collapse Toggle */}
+          {/* Desktop Collapse Toggle Button */}
           <button
             onClick={onToggleCollapse}
             className={`hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition ${
@@ -202,7 +208,7 @@ export default function Sidebar({
 
         {/* Search Input */}
         {(!isCollapsed || isMobileOpen) && (
-          <div className="p-3 border-b border-white/5 bg-black/20 shrink-0">
+          <div className="p-2.5 border-b border-white/5 bg-black/20 shrink-0">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
@@ -226,10 +232,10 @@ export default function Sidebar({
 
         {/* Navigation Links Scrollable List (No visible scrollbar slider) */}
         <div
-          className="flex-1 overflow-y-auto py-3 px-2 space-y-4 no-scrollbar"
+          className="flex-1 overflow-y-auto py-2.5 px-2 space-y-4 no-scrollbar"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* Main Sections */}
+          {/* Main Core Sections */}
           <div>
             {(!isCollapsed || isMobileOpen) && (
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5 flex items-center justify-between">
