@@ -52,7 +52,7 @@ export default function App() {
   });
 
   const [selectedUnitId, setSelectedUnitId] = useState('unit_1');
-  const [activeSheet, setActiveSheet] = useState('Summary');
+  const [activeSheet, setActiveSheet] = useState('Audit');
   const [saveNotification, setSaveNotification] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
