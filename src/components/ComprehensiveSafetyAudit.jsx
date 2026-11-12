@@ -1,4 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Bar, Radar } from 'react-chartjs-2';
 import {
   Building2,
   Calendar,
@@ -12,9 +26,26 @@ import {
   Award,
   CheckCircle2,
   TrendingUp,
-  FileCheck
+  FileCheck,
+  FileCheck2,
+  BarChart3,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const AUDITOR_TABLE_WIDTHS = {
   sno: 50,
@@ -38,6 +69,46 @@ const AUDIT_CRITERIA_WIDTHS = {
   weight: 140
 };
 
+const UNIT_BENCHMARK_WIDTHS = {
+  unitCode: 110,
+  unitName: 220,
+  division: 100,
+  location: 170,
+  baseline: 120,
+  postCapa: 120,
+  delta: 100,
+  maturity: 150,
+  action: 95
+};
+
+const ELEMENT_TABLE_WIDTHS = {
+  sl: 50,
+  elem: 300,
+  baseline: 120,
+  postCapa: 120,
+  delta: 100,
+  capaStats: 140,
+  action: 85
+};
+
+const getScoreTheme = (score) => {
+  if (typeof score !== 'number') return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' };
+  if (score < 25) return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' };
+  if (score < 50) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' };
+  if (score < 75) return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' };
+  if (score < 85) return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' };
+  return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' };
+};
+
+const getMaturityBadge = (postCapaPct) => {
+  if (typeof postCapaPct !== 'number') return { level: 'Level - I', badge: 'bg-slate-100 text-slate-600 border-slate-300', text: 'Not Available' };
+  if (postCapaPct < 25) return { level: 'Level - I', badge: 'bg-rose-100 text-rose-800 border-rose-300', text: 'Initial' };
+  if (postCapaPct < 50) return { level: 'Level - II', badge: 'bg-orange-100 text-orange-800 border-orange-300', text: 'Managed' };
+  if (postCapaPct < 75) return { level: 'Level - III', badge: 'bg-amber-100 text-amber-800 border-amber-300', text: 'Defined' };
+  if (postCapaPct < 85) return { level: 'Level - IV', badge: 'bg-blue-100 text-blue-800 border-blue-300', text: 'Qualitatively Managed' };
+  return { level: 'Level - V', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300', text: 'Continuous Improvement' };
+};
+
 const SCORING_RUBRIC = [
   { score: 0, indicator: 'Non-Compliant', badge: 'bg-rose-100 text-rose-800 border-rose-300', bar: 'bg-rose-500', pct: '0%', degree: 'No system in place', desc: 'No documented procedure, no records, and no implementation on shop floor.' },
   { score: 1, indicator: 'Inadequate', badge: 'bg-orange-100 text-orange-800 border-orange-300', bar: 'bg-orange-500', pct: '25%', degree: 'Inadequate System - (SOP is not defined/ Not documented)', desc: 'SOP missing, draft stage, or employees unaware of safety instructions.' },
@@ -47,14 +118,18 @@ const SCORING_RUBRIC = [
 ];
 
 export default function ComprehensiveSafetyAudit({
-  units,
+  units = [],
   selectedUnitId,
-  onSelectUnit,
-  onUpdateUnitCoverPage,
-  unitMetrics,
-  theme
+  onSelectUnit = () => {},
+  onUpdateUnitCoverPage = () => {},
+  unitMetrics = {},
+  theme = {},
+  onSelectSheet = () => {}
 }) {
-  const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0];
+  const [chartView, setChartView] = useState('both'); // 'bar', 'radar', 'both'
+
+  const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0] || {};
+  const isCurrentUnitAvailable = currentUnit.available !== false && currentUnit.status !== 'Not Available Now';
   const cp = currentUnit.cover_page || {};
 
   const {
@@ -80,6 +155,22 @@ export default function ComprehensiveSafetyAudit({
     resetAll: resetRubricWidths,
     activeResizer: rubricActiveResizer
   } = useTableResize(AUDIT_CRITERIA_WIDTHS, 'csa_audit_rubric_widths');
+
+  const {
+    widths: unitWidths,
+    handleMouseDown: handleUnitResize,
+    handleDoubleClick: handleUnitDblClick,
+    resetAll: resetUnitWidths,
+    activeResizer: unitActiveResizer
+  } = useTableResize(UNIT_BENCHMARK_WIDTHS, 'csa_audit_unit_benchmark_widths');
+
+  const {
+    widths: elemWidths,
+    handleMouseDown: handleElemResize,
+    handleDoubleClick: handleElemDblClick,
+    resetAll: resetElemWidths,
+    activeResizer: elemActiveResizer
+  } = useTableResize(ELEMENT_TABLE_WIDTHS, 'csa_audit_elem_widths');
 
   const updateField = (field, value) => {
     onUpdateUnitCoverPage(currentUnit.id, {
@@ -142,11 +233,112 @@ export default function ComprehensiveSafetyAudit({
   };
 
   const currentMetrics = unitMetrics[currentUnit.id] || { baselineScore: 0.6, capaScore: 0.68, delta: 0.08 };
+  const currentMetric = unitMetrics[currentUnit.id] || {
+    baselineScorePct: null,
+    baselineAvgScore: null,
+    postCapaScorePct: null,
+    postCapaAvgScore: null,
+    deltaPct: null,
+    maturityLevel: { level: 'Level - I', criteria: 'Initial', range: '1% - 25%' },
+    elements: []
+  };
+
   const auditorTotalWidth = Object.values(auditorWidths).reduce((a, b) => a + b, 0);
   const auditeeTotalWidth = Object.values(auditeeWidths).reduce((a, b) => a + b, 0);
 
+  const baselineScores = (currentMetric.elements || []).map((e) =>
+    typeof e.baselinePct === 'number' ? Math.round(e.baselinePct * 10) / 10 : 0
+  );
+  const postCapaScores = (currentMetric.elements || []).map((e) =>
+    typeof e.postCapaPct === 'number' ? Math.round(e.postCapaPct * 10) / 10 : 0
+  );
+
+  const barChartData = {
+    labels: (currentMetric.elements || []).map((e, idx) => `${idx + 1}. ${e.element_name.substring(0, 14)}..`),
+    datasets: [
+      {
+        label: 'Baseline Audit Score (%)',
+        data: baselineScores,
+        backgroundColor: 'rgba(148, 163, 184, 0.7)',
+        borderColor: '#64748b',
+        borderWidth: 1.5,
+        borderRadius: 4
+      },
+      {
+        label: 'Post-CAPA Effective Score (%)',
+        data: postCapaScores,
+        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+        borderColor: '#4338ca',
+        borderWidth: 1.5,
+        borderRadius: 4
+      }
+    ]
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11, weight: '600' } } },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}% (${(ctx.raw / 25).toFixed(2)}/4.0)`
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        ticks: { callback: (v) => `${v}%`, font: { size: 10 } },
+        grid: { color: '#f1f5f9' }
+      },
+      x: {
+        ticks: { maxRotation: 45, minRotation: 45, font: { size: 9 } },
+        grid: { display: false }
+      }
+    }
+  };
+
+  const radarChartData = {
+    labels: (currentMetric.elements || []).map((e) =>
+      e.element_name.length > 15 ? e.element_name.substring(0, 13) + '..' : e.element_name
+    ),
+    datasets: [
+      {
+        label: 'Baseline %',
+        data: baselineScores,
+        borderColor: 'rgba(148, 163, 184, 0.8)',
+        backgroundColor: 'rgba(148, 163, 184, 0.15)',
+        borderWidth: 1.5
+      },
+      {
+        label: 'Post-CAPA %',
+        data: postCapaScores,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(99, 102, 241, 0.25)',
+        borderWidth: 2
+      }
+    ]
+  };
+
+  const radarChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: {
+        beginAtZero: true,
+        max: 100,
+        ticks: { stepSize: 25, callback: (v) => `${v}%`, font: { size: 9 } }
+      }
+    },
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11, weight: '600' } } }
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-[1600px] mx-auto space-y-6">
       {/* Top Banner Card */}
       <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-5 md:p-7">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-slate-100 pb-6">
@@ -354,6 +546,535 @@ export default function ComprehensiveSafetyAudit({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. UNIT-WISE OPERATIONAL BENCHMARK & DIVISION SUMMARY (ALL 6 OPERATING UNITS) */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-bold text-slate-900">
+                Unit-Wise Operational Benchmark & Division Summary
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Click any unit row or "Focus" button to inspect its comprehensive 19 elements profile and CAPA breakdown below.
+            </p>
+          </div>
+          <button
+            onClick={resetUnitWidths}
+            className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition"
+          >
+            Reset Column Widths
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[950px]">
+            <thead>
+              <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                <th
+                  style={{ width: `${unitWidths.unitCode}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Unit Code
+                  <ResizeHandle
+                    columnId="unitCode"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'unitCode'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.unitName}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Unit Name / Facility
+                  <ResizeHandle
+                    columnId="unitName"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'unitName'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.division}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none text-center"
+                >
+                  Division
+                  <ResizeHandle
+                    columnId="division"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'division'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.location}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Location / Plant
+                  <ResizeHandle
+                    columnId="location"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'location'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.baseline}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Baseline Score
+                  <ResizeHandle
+                    columnId="baseline"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'baseline'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.postCapa}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Post-CAPA Score
+                  <ResizeHandle
+                    columnId="postCapa"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'postCapa'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.delta}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  CAPA Gain
+                  <ResizeHandle
+                    columnId="delta"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'delta'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.maturity}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Maturity Level
+                  <ResizeHandle
+                    columnId="maturity"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'maturity'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.action}px` }}
+                  className="px-4 py-3 text-center relative select-none"
+                >
+                  Action
+                  <ResizeHandle
+                    columnId="action"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'action'}
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-sm">
+              {units.map((u) => {
+                const isSelected = u.id === selectedUnitId;
+                const isAvail = u.available !== false && u.status !== 'Not Available Now';
+                const m = unitMetrics[u.id] || {};
+                const isFD = ['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD';
+                const themeCol = isAvail && typeof m.postCapaScorePct === 'number'
+                  ? getScoreTheme(m.postCapaScorePct)
+                  : { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' };
+
+                return (
+                  <tr
+                    key={u.id}
+                    onClick={() => onSelectUnit(u.id)}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-indigo-50/70 font-medium'
+                        : isAvail
+                        ? 'hover:bg-slate-50/60'
+                        : 'bg-amber-50/30 hover:bg-amber-50/60'
+                    }`}
+                  >
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-indigo-600' : isAvail ? 'bg-slate-300' : 'bg-amber-400'}`} />
+                        <span className="font-mono text-xs font-bold text-slate-800">{u.code}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      <div className="font-semibold text-slate-900">{u.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {isAvail ? (u.cover_page?.assessment_stage || 'Annual Assessment') : 'Audit Report Pending / Not Available Now'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200 text-center">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold border ${
+                          isFD
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
+                      >
+                        {isFD ? 'FD' : 'API'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200 text-slate-600 text-xs">
+                      {u.cover_page?.location || u.location || 'Plant Site'}
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      {isAvail && typeof m.baselineScorePct === 'number' ? (
+                        <>
+                          <div className="text-xs font-mono font-bold text-slate-600">
+                            {m.baselineScorePct.toFixed(1)}%
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            ({(m.baselineAvgScore || 0).toFixed(2)} / 4.0)
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      {isAvail && typeof m.postCapaScorePct === 'number' ? (
+                        <>
+                          <div className="text-xs font-mono font-bold text-indigo-700">
+                            {m.postCapaScorePct.toFixed(1)}%
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            ({(m.postCapaAvgScore || 0).toFixed(2)} / 4.0)
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-amber-700 font-medium">Not Available</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      {isAvail && typeof m.deltaPct === 'number' ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          +{m.deltaPct.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200">
+                      {isAvail && typeof m.postCapaScorePct === 'number' ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${themeCol.bg} ${themeCol.text} ${themeCol.border}`}>
+                          {getMaturityBadge(m.postCapaScorePct).level}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          Not Available Now
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectUnit(u.id);
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700'
+                        }`}
+                      >
+                        {isSelected ? 'Active' : 'Focus'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. FOCUSED UNIT DEEP DIVE KPI CARDS & CHARTS                              */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {currentUnit.code}
+              </span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                currentUnit.division === 'FD' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+                {currentUnit.division === 'FD' ? 'FD Division' : 'API Division'}
+              </span>
+              <span className="text-xs text-slate-500">Focused Unit Analysis</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">{currentUnit.name}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {currentUnit.cover_page?.location || currentUnit.location || 'Plant Site'} • {currentUnit.cover_page?.hazard_classification || 'Class A Chemical'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onSelectSheet('Sheet_1')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
+            >
+              <FileCheck2 className="w-3.5 h-3.5" />
+              Open Unit Audit Checklist
+            </button>
+          </div>
+        </div>
+
+        {/* If unit is not available now (e.g. Unit 7 GLS) */}
+        {!isCurrentUnitAvailable ? (
+          <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+              <Clock className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">
+              {currentUnit.name} - Audit Report Not Available Now
+            </h3>
+            <p className="text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+              The Comprehensive Safety Audit (CSA) report for <strong>{currentUnit.code} ({currentUnit.name})</strong> is currently pending or not yet submitted for this cycle. Its 19 elements and scoring benchmarks will appear once the data is published.
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => onSelectUnit('unit_6')}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm"
+              >
+                Switch to Available FD Facility: Unit-6 GGP
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Focused KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Baseline Audit Score
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold font-mono text-slate-800">
+                    {typeof currentMetric.baselineScorePct === 'number' ? `${currentMetric.baselineScorePct.toFixed(1)}%` : 'N/A'}
+                  </span>
+                  {typeof currentMetric.baselineAvgScore === 'number' && (
+                    <span className="text-xs font-mono text-slate-400">
+                      ({currentMetric.baselineAvgScore.toFixed(2)}/4.0)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 block mb-1">
+                  Post-CAPA Effective Score
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold font-mono text-indigo-700">
+                    {typeof currentMetric.postCapaScorePct === 'number' ? `${currentMetric.postCapaScorePct.toFixed(1)}%` : 'N/A'}
+                  </span>
+                  {typeof currentMetric.postCapaAvgScore === 'number' && (
+                    <span className="text-xs font-mono text-indigo-500">
+                      ({currentMetric.postCapaAvgScore.toFixed(2)}/4.0)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
+                  CAPA Improvement Delta
+                </span>
+                <div className="flex items-line gap-2">
+                  <span className="text-2xl font-bold font-mono text-emerald-700">
+                    +{typeof currentMetric.deltaPct === 'number' ? currentMetric.deltaPct.toFixed(1) : '0.0'}%
+                  </span>
+                  <span className="text-xs text-emerald-600 font-medium">Post-CAPA Gain</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Unit Maturity Tier
+                </span>
+                <div className="mt-1">
+                  <span className="inline-flex px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                    {currentMetric.maturityLevel?.level}: {currentMetric.maturityLevel?.criteria}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Charts View: Bar & Radar */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-sm font-bold text-slate-900">
+                    19 Elements Compliance Profile ({currentUnit.code})
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
+                  <button
+                    onClick={() => setChartView('both')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'both' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Both
+                  </button>
+                  <button
+                    onClick={() => setChartView('bar')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'bar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Bar Chart
+                  </button>
+                  <button
+                    onClick={() => setChartView('radar')}
+                    className={`px-2.5 py-1 rounded ${chartView === 'radar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+                  >
+                    Radar Profile
+                  </button>
+                </div>
+              </div>
+
+              <div className={`grid gap-6 ${chartView === 'both' ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                {(chartView === 'both' || chartView === 'bar') && (
+                  <div className={`${chartView === 'both' ? 'lg:col-span-2' : ''} bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80`}>
+                    <Bar data={barChartData} options={barChartOptions} />
+                  </div>
+                )}
+                {(chartView === 'both' || chartView === 'radar') && (
+                  <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80 flex items-center justify-center">
+                    <Radar data={radarChartData} options={radarChartOptions} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 19 Elements Compliance Table with Direct Jump */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {currentUnit.code} Element-by-Element Breakdown (19 Elements)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Click "Open" to jump directly to any audit element's detailed checklist questions and evidence.
+                  </p>
+                </div>
+                <button
+                  onClick={resetElemWidths}
+                  className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
+                >
+                  Reset Widths
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                      <th style={{ width: `${elemWidths.sl}px` }} className="px-3 py-2.5 border-r border-slate-200 text-center relative select-none">
+                        #
+                        <ResizeHandle columnId="sl" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'sl'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.elem}px` }} className="px-4 py-2.5 border-r border-slate-200 relative select-none">
+                        Element Name
+                        <ResizeHandle columnId="elem" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'elem'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.baseline}px` }} className="px-4 py-2.5 border-r border-slate-200 relative select-none">
+                        Baseline Score
+                        <ResizeHandle columnId="baseline" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'baseline'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.postCapa}px` }} className="px-4 py-2.5 border-r border-slate-200 relative select-none">
+                        Post-CAPA Score
+                        <ResizeHandle columnId="postCapa" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'postCapa'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.delta}px` }} className="px-4 py-2.5 border-r border-slate-200 relative select-none">
+                        Delta
+                        <ResizeHandle columnId="delta" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'delta'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.capaStats}px` }} className="px-4 py-2.5 border-r border-slate-200 text-center relative select-none">
+                        CAPA Actions
+                        <ResizeHandle columnId="capaStats" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'capaStats'} />
+                      </th>
+                      <th style={{ width: `${elemWidths.action}px` }} className="px-3 py-2.5 text-center relative select-none">
+                        Checklist
+                        <ResizeHandle columnId="action" onMouseDown={handleElemResize} onDoubleClick={handleElemDblClick} isActive={elemActiveResizer === 'action'} />
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-xs">
+                    {(currentMetric.elements || []).map((el) => {
+                      const elTheme = getScoreTheme(el.postCapaPct);
+                      return (
+                        <tr key={el.s_no} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-3 py-2.5 border-r border-slate-200 text-center font-bold text-slate-400">
+                            {el.s_no}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">
+                            {el.element_name}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">
+                            {typeof el.baselinePct === 'number'
+                              ? `${el.baselinePct.toFixed(1)}% (${(el.baselineAvg || 0).toFixed(2)}/4)`
+                              : 'N/A'}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200">
+                            {typeof el.postCapaPct === 'number' ? (
+                              <span className={`inline-flex px-2 py-0.5 rounded font-mono font-bold border ${elTheme.bg} ${elTheme.text} ${elTheme.border}`}>
+                                {el.postCapaPct.toFixed(1)}% ({((el.postCapaAvg || 0)).toFixed(2)}/4)
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-mono">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 font-mono font-semibold text-emerald-700">
+                            +{typeof el.deltaPct === 'number' ? el.deltaPct.toFixed(1) : 0}%
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-200 text-center">
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {el.verifiedCapaCount > 0 ? (
+                                <span className="text-emerald-700 font-bold">{el.verifiedCapaCount} Verified</span>
+                              ) : el.openCapaCount > 0 ? (
+                                <span className="text-amber-700 font-bold">{el.openCapaCount} Open</span>
+                              ) : (
+                                <span className="text-slate-400">0 Actions</span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <button
+                              onClick={() => onSelectSheet(el.sheet_ref)}
+                              className="px-2 py-1 rounded text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition inline-flex items-center gap-1"
+                            >
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Auditor Team and Auditees & Plant Participants (Rendered because a unit is selected) */}

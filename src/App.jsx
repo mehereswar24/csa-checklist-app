@@ -482,6 +482,7 @@ export default function App() {
               onUpdateUnitCoverPage={handleUpdateUnitCoverPage}
               unitMetrics={unitMetrics}
               theme={currentTheme}
+              onSelectSheet={(sheet) => setActiveSheet(sheet)}
             />
           ) : activeSheet === 'Summary' || activeSheet === 'Criteria' ? (
             <SummaryDashboard
