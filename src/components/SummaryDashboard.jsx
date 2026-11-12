@@ -476,18 +476,9 @@ export default function SummaryDashboard({
           <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
           
           <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-                Tier 1 â€¢ Enterprise Rollup
-              </span>
-              <span className="text-[11px] font-mono text-indigo-300/80">
-                {orgMetrics.activeCount} Active / {orgMetrics.totalCount} Total Units
-              </span>
-            </div>
-
-            <h3 className="text-xl font-extrabold text-white tracking-tight">
-              Granules EHS Maturity (Enterprise Rollup)
+            <h3 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-400" />
+              Granules EHS Maturity
             </h3>
             <p className="text-xs text-indigo-200/70 mt-1">
               Overall safety maturity aggregated across all active API & Finished Dosage manufacturing units.
@@ -533,15 +524,8 @@ export default function SummaryDashboard({
         {/* CARD 2: API MATURITY (UNITS 1, 2, 4, 5) */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-blue-300 transition">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                <Factory className="w-3.5 h-3.5 text-blue-600" />
-                Tier 2 â€¢ API Business Unit
-              </span>
-              <span className="text-[11px] font-mono text-blue-600 font-bold">4 Operating Plants</span>
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Factory className="w-5 h-5 text-blue-600" />
               API Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -604,15 +588,8 @@ export default function SummaryDashboard({
         {/* CARD 3: FD MATURITY (UNITS 6 GGP, 7 GLS) */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-purple-300 transition">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                <Pill className="w-3.5 h-3.5 text-purple-600" />
-                Tier 3 â€¢ Finished Dosage (FD)
-              </span>
-              <span className="text-[11px] font-mono text-purple-700 font-bold">2 Units (GGP & GLS)</span>
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Pill className="w-5 h-5 text-purple-600" />
               FD Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
