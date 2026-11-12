@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import initialData from './csa_data.json';
-import CoverPage from './components/CoverPage.jsx';
-import AuditTeam from './components/AuditTeam.jsx';
+import initialData from './multi_units_data.json';
+import ComprehensiveSafetyAudit from './components/ComprehensiveSafetyAudit.jsx';
 import SummaryDashboard from './components/SummaryDashboard.jsx';
+import InteractiveAnalytics from './components/InteractiveAnalytics.jsx';
+import CriteriaAndMaturity from './components/CriteriaAndMaturity.jsx';
 import ChecklistSheet from './components/ChecklistSheet.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import { THEMES, FONTS } from './themes.js';
@@ -18,10 +19,13 @@ import {
   Type,
   Check,
   X,
-  Menu
+  Menu,
+  Building2,
+  TrendingUp,
+  Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'csa_checklist_app_state_v1';
+const STORAGE_KEY = 'org_ehs_maturity_v2_data';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -30,13 +34,19 @@ export default function App() {
   const [data, setData] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.units && parsed.units.length === 6) {
+          return parsed;
+        }
+      }
     } catch (e) {
       console.error('Failed to load saved state:', e);
     }
     return initialData;
   });
 
+  const [selectedUnitId, setSelectedUnitId] = useState('unit_1');
   const [activeSheet, setActiveSheet] = useState('Summary');
   const [saveNotification, setSaveNotification] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -106,86 +116,166 @@ export default function App() {
     }
   }, [data]);
 
-  // Compute live totals and scores
-  const computedData = useMemo(() => {
-    const updatedChecklists = data.checklists.map((cl) => {
-      const totalScore = cl.questions.reduce((sum, q) => {
-        const val = typeof q.score === 'number' ? q.score : 0;
-        return sum + val;
-      }, 0);
-      const divisor = cl.divisor_count || cl.questions.length || 1;
-      const maxPossible = divisor * 4;
-      const compScore = maxPossible > 0 ? totalScore / maxPossible : 0;
+  // Compute live metrics for each of the 6 units
+  const unitMetrics = useMemo(() => {
+    const metrics = {};
+    const maturityLevels = data.maturity_levels || [];
 
-      return {
-        ...cl,
-        computedTotal: totalScore,
-        computedScore: compScore
+    data.units.forEach((unit) => {
+      const elementsList = [];
+      let totalBaselinePct = 0;
+      let totalPostCapaPct = 0;
+
+      unit.checklists.forEach((cl, index) => {
+        let bScoreSum = 0;
+        let pScoreSum = 0;
+        let openCapa = 0;
+        let verifiedCapa = 0;
+
+        const questions = cl.questions || [];
+        questions.forEach((q) => {
+          const b = typeof q.score === 'number' ? q.score : 0;
+          bScoreSum += b;
+
+          const capaAdd =
+            q.capa_verification_score !== null &&
+            q.capa_verification_score !== undefined &&
+            q.capa_verification_score !== ''
+              ? Number(q.capa_verification_score)
+              : q.capa_score !== null && q.capa_score !== undefined && q.capa_score !== ''
+              ? Number(q.capa_score)
+              : 0;
+
+          if (q.capa_action && !q.capa_verification_score) openCapa++;
+          if (q.capa_verification_score !== null && q.capa_verification_score !== undefined) verifiedCapa++;
+
+          pScoreSum += Math.min(4, b + capaAdd);
+        });
+
+        const divisor = cl.divisor_count || questions.length || 1;
+        const maxPossible = divisor * 4;
+
+        const bPct = maxPossible > 0 ? (bScoreSum / maxPossible) * 100 : 0;
+        const pPct = maxPossible > 0 ? (pScoreSum / maxPossible) * 100 : 0;
+
+        totalBaselinePct += bPct;
+        totalPostCapaPct += pPct;
+
+        elementsList.push({
+          s_no: index + 1,
+          element_name: cl.title || cl.sheet_name,
+          sheet_ref: cl.sheet_name,
+          baselineAvg: questions.length > 0 ? bScoreSum / questions.length : 0,
+          baselinePct: bPct,
+          postCapaAvg: questions.length > 0 ? pScoreSum / questions.length : 0,
+          postCapaPct: pPct,
+          deltaPct: pPct - bPct,
+          totalQuestions: questions.length,
+          openCapaCount: openCapa,
+          verifiedCapaCount: verifiedCapa
+        });
+      });
+
+      const numElements = unit.checklists.length || 1;
+      const overallBaselinePct = totalBaselinePct / numElements;
+      const overallPostCapaPct = totalPostCapaPct / numElements;
+      const deltaPct = overallPostCapaPct - overallBaselinePct;
+
+      const activeMaturityLevel =
+        maturityLevels.find((ml) => {
+          const ratio = overallPostCapaPct / 100;
+          return ratio >= ml.min && ratio <= ml.max;
+        }) || maturityLevels[maturityLevels.length - 1] || { level: 'Level - I', criteria: 'Initial', range: '1% - 25%' };
+
+      metrics[unit.id] = {
+        unitId: unit.id,
+        unitName: unit.name,
+        unitCode: unit.code,
+        baselineScorePct: overallBaselinePct,
+        baselineAvgScore: (overallBaselinePct / 100) * 4,
+        postCapaScorePct: overallPostCapaPct,
+        postCapaAvgScore: (overallPostCapaPct / 100) * 4,
+        deltaPct: deltaPct,
+        maturityLevel: activeMaturityLevel,
+        elements: elementsList
       };
     });
 
-    const updatedSummaryElements = data.summary.elements.map((elem) => {
-      const cl = updatedChecklists.find((c) => c.sheet_name === elem.sheet_ref);
-      const score = cl ? cl.computedScore : elem.score;
-      return {
-        ...elem,
-        score: score
-      };
-    });
-
-    const totalElemScore = updatedSummaryElements.reduce((acc, el) => acc + (el.score || 0), 0);
-    const overallScore = updatedSummaryElements.length > 0 ? totalElemScore / updatedSummaryElements.length : 0;
-
-    return {
-      ...data,
-      checklists: updatedChecklists,
-      summary: {
-        ...data.summary,
-        elements: updatedSummaryElements,
-        overall_score: overallScore
-      },
-      computedOverallScore: overallScore
-    };
+    return metrics;
   }, [data]);
 
+  // Update question within active unit
   const handleUpdateQuestion = (sheetName, questionId, field, value) => {
     setData((prev) => {
-      const updatedChecklists = prev.checklists.map((cl) => {
-        if (cl.sheet_name !== sheetName) return cl;
-        const updatedQuestions = cl.questions.map((q) => {
-          if (q.id !== questionId) return q;
-          return { ...q, [field]: value };
+      const updatedUnits = prev.units.map((unit) => {
+        if (unit.id !== selectedUnitId) return unit;
+
+        const updatedChecklists = unit.checklists.map((cl) => {
+          if (cl.sheet_name !== sheetName) return cl;
+
+          const updatedQuestions = cl.questions.map((q) => {
+            if (q.id !== questionId) return q;
+            return { ...q, [field]: value };
+          });
+
+          return { ...cl, questions: updatedQuestions };
         });
-        return { ...cl, questions: updatedQuestions };
+
+        return { ...unit, checklists: updatedChecklists };
       });
-      return { ...prev, checklists: updatedChecklists };
+
+      return { ...prev, units: updatedUnits };
     });
   };
 
+  // Update Cover Page for a Unit
+  const handleUpdateUnitCoverPage = (unitId, updatedCoverPage) => {
+    setData((prev) => {
+      const updatedUnits = prev.units.map((u) => {
+        if (u.id !== unitId) return u;
+        return { ...u, cover_page: updatedCoverPage };
+      });
+      return { ...prev, units: updatedUnits };
+    });
+  };
+
+  // Redirect from Analytics or Criteria to Unit Summary
+  const handleNavigateToUnitSummary = (unitId) => {
+    setSelectedUnitId(unitId);
+    setActiveSheet('Summary');
+    setIsMobileSidebarOpen(false);
+  };
+
   const handleResetToBaseline = () => {
-    if (window.confirm('Reset all audit checklist scores and remarks back to the original baseline?')) {
+    if (
+      window.confirm(
+        'Reset all 6 units audit checklist scores, remarks, and CAPA actions back to original baseline?'
+      )
+    ) {
       localStorage.removeItem(STORAGE_KEY);
       setData(initialData);
     }
   };
 
   const handleExport = () => {
-    exportToExcel(computedData);
+    exportToExcel(data, selectedUnitId);
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const getSheetScore = (sheetName) => {
-    if (sheetName === 'Cover Page' || sheetName === 'Audit Team') return null;
-    if (sheetName === 'Summary') return computedData.computedOverallScore;
-    const cl = computedData.checklists.find((c) => c.sheet_name === sheetName);
-    return cl ? cl.computedScore : null;
-  };
+  // Currently focused unit and its checklists
+  const currentUnit = data.units.find((u) => u.id === selectedUnitId) || data.units[0];
+  const checklistSheets = currentUnit.checklists.map((c) => c.sheet_name);
+  const activeChecklist = currentUnit.checklists.find((c) => c.sheet_name === activeSheet);
 
-  const allSheets = ['Cover Page', 'Audit Team', 'Summary', ...data.checklists.map((c) => c.sheet_name)];
-  const activeChecklist = computedData.checklists.find((c) => c.sheet_name === activeSheet);
+  const getSheetScore = (sheetName) => {
+    const curMetric = unitMetrics[selectedUnitId];
+    if (!curMetric) return null;
+    const elem = curMetric.elements.find((e) => e.sheet_ref === sheetName);
+    return elem ? { pct: elem.postCapaPct, avg: elem.postCapaAvg } : null;
+  };
 
   return (
     <div
@@ -194,14 +284,15 @@ export default function App() {
     >
       {/* Collapsible / Mobile Off-Canvas Sidebar */}
       <Sidebar
-        sheets={allSheets}
+        checklistSheets={checklistSheets}
         activeSheet={activeSheet}
         onSelectSheet={(sheet) => {
           setActiveSheet(sheet);
           setIsMobileSidebarOpen(false);
         }}
         getSheetScore={getSheetScore}
-        overallScore={computedData.computedOverallScore}
+        unitMetrics={unitMetrics}
+        selectedUnitId={selectedUnitId}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
         isMobileOpen={isMobileSidebarOpen}
@@ -215,7 +306,7 @@ export default function App() {
         <header
           className={`${currentTheme.headerBg} text-white shrink-0 shadow-sm border-b ${currentTheme.headerBorder} no-print z-20 transition-all`}
         >
-          <div className="px-3 md:px-4 py-2.5 flex items-center justify-between gap-2 md:gap-3">
+          <div className="px-3 md:px-5 py-2.5 flex items-center justify-between gap-2 md:gap-4">
             {/* Left: Hamburger (Mobile) + Collapse (Desktop) + Brand */}
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
               {/* Mobile Hamburger Button */}
@@ -237,158 +328,205 @@ export default function App() {
               </button>
 
               <div
-                className="text-white p-1.5 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs shrink-0"
+                className="text-white p-1.5 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs shrink-0"
                 style={{ backgroundColor: currentTheme.primary }}
               >
                 <ShieldCheck className="w-4 h-4" />
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-xs sm:text-sm md:text-base tracking-tight text-white truncate">
-                    CSA Audit
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">
+                    Org EHS Maturity
                   </span>
-                  <span className="bg-white/10 text-slate-300 text-[9px] md:text-[10px] font-mono px-1.5 py-0.2 rounded-full hidden sm:inline">
-                    Excel Web
+                  <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-white/15 px-2 py-0.5 rounded-md text-indigo-100">
+                    6 Units
                   </span>
                 </div>
-                <div className="text-[10px] md:text-[11px] text-slate-300 flex items-center gap-1.5 truncate">
-                  <span className="truncate">Section: <strong className="text-white">{activeSheet}</strong></span>
-                </div>
+                <p className="text-[10px] text-slate-300 hidden md:block truncate">
+                  Safety Management System & Process Safety Gap Assessment Platform
+                </p>
               </div>
             </div>
 
-            {/* Right: Score KPI + Quick Action Controls */}
-            <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0">
-              {/* Overall Score Badge */}
-              <button
-                onClick={() => setActiveSheet('Summary')}
-                className="bg-white/10 hover:bg-white/15 transition px-2 sm:px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border border-white/10 text-left"
-                title="View Gap Assessment Summary"
+            {/* Center: Global Unit Selector Pill */}
+            <div className="flex items-center bg-white/10 hover:bg-white/15 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-white/15 transition">
+              <Building2 className="w-3.5 h-3.5 text-indigo-200 shrink-0 mr-1.5" />
+              <select
+                value={selectedUnitId}
+                onChange={(e) => setSelectedUnitId(e.target.value)}
+                className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-1"
               >
-                <span className="text-slate-300 text-[9px] uppercase tracking-wider font-semibold hidden sm:inline">Score:</span>
-                <span className="font-mono text-emerald-300 font-extrabold text-xs sm:text-sm">
-                  {(computedData.computedOverallScore * 100).toFixed(0)}%
-                </span>
-              </button>
+                {data.units.map((u) => {
+                  const m = unitMetrics[u.id];
+                  return (
+                    <option key={u.id} value={u.id} className="text-slate-800">
+                      {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
-              {/* Theme & Font Customizer Trigger */}
+            {/* Right: Actions (Theme, Font, Export, Print, Reset) */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* Theme Customizer Trigger */}
               <button
-                onClick={() => setShowThemeModal(!showThemeModal)}
-                className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-white/10 transition"
-                title="Change Colors & Typography"
+                onClick={() => setShowThemeModal(true)}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Customize Theme & Fonts"
               >
                 <Palette className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">Theme</span>
               </button>
 
-              {/* Export Excel Button */}
+              {/* Export to Excel */}
               <button
                 onClick={handleExport}
-                className="inline-flex items-center gap-1 text-white text-xs font-bold p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition shadow-xs"
-                style={{ backgroundColor: currentTheme.primary }}
-                title="Download updated .xlsx file"
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition"
+                title="Export active unit & multi-unit benchmarks to Excel (.xlsx)"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Export</span>
+                <span className="hidden sm:inline">Export Excel</span>
               </button>
 
-              {/* Print View (Hidden on mobile) */}
+              {/* Print / PDF */}
               <button
                 onClick={handlePrint}
-                className="hidden sm:inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2 py-1.5 rounded-lg transition"
-                title="Print Current Sheet"
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Print or Save to PDF"
               >
                 <Printer className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Print</span>
               </button>
 
               {/* Reset to Baseline */}
               <button
                 onClick={handleResetToBaseline}
-                className="inline-flex items-center gap-1 bg-white/10 hover:bg-rose-900/40 text-slate-300 hover:text-white text-xs p-1.5 sm:px-2 rounded-lg transition"
-                title="Reset to Excel Baseline"
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Reset all audit data to default baseline"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">Reset</span>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Theme & Font Customizer Modal */}
-        {showThemeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 no-print">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-5 md:p-6 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-indigo-600" />
-                  <h3 className="font-bold text-base text-slate-900">Theme & Typography</h3>
-                </div>
-                <button
-                  onClick={() => setShowThemeModal(false)}
-                  className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {/* Auto-save notification pill */}
+        {saveNotification && (
+          <div className="fixed bottom-4 right-4 z-50 bg-slate-900/90 text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-slate-700 flex items-center gap-1.5 animate-fade-in pointer-events-none">
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Changes saved</span>
+          </div>
+        )}
 
-              {/* Color Palettes */}
-              <div className="mt-4">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
+        {/* Main Workspace Body */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 bg-[#f8fafc]">
+          {activeSheet === 'Audit' ? (
+            <ComprehensiveSafetyAudit
+              units={data.units}
+              selectedUnitId={selectedUnitId}
+              onSelectUnit={setSelectedUnitId}
+              onUpdateUnitCoverPage={handleUpdateUnitCoverPage}
+              unitMetrics={unitMetrics}
+              theme={currentTheme}
+            />
+          ) : activeSheet === 'Summary' ? (
+            <SummaryDashboard
+              units={data.units}
+              selectedUnitId={selectedUnitId}
+              onSelectUnit={setSelectedUnitId}
+              unitMetrics={unitMetrics}
+              onSelectSheet={(sheet) => setActiveSheet(sheet)}
+              theme={currentTheme}
+            />
+          ) : activeSheet === 'Analytics' ? (
+            <InteractiveAnalytics
+              units={data.units}
+              elementsMeta={data.elements_meta}
+              unitMetrics={unitMetrics}
+              onNavigateToUnitSummary={handleNavigateToUnitSummary}
+              theme={currentTheme}
+            />
+          ) : activeSheet === 'Criteria' ? (
+            <CriteriaAndMaturity
+              units={data.units}
+              scoringCriteria={data.scoring_criteria}
+              maturityLevels={data.maturity_levels}
+              unitMetrics={unitMetrics}
+              onNavigateToUnitSummary={handleNavigateToUnitSummary}
+              theme={currentTheme}
+            />
+          ) : activeChecklist ? (
+            <ChecklistSheet
+              checklist={activeChecklist}
+              units={data.units}
+              selectedUnitId={selectedUnitId}
+              onSelectUnit={setSelectedUnitId}
+              onUpdateQuestion={handleUpdateQuestion}
+              theme={currentTheme}
+            />
+          ) : (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+              <h2 className="text-lg font-bold text-slate-800">Sheet Not Found</h2>
+              <p className="text-sm text-slate-500 mt-1">Please select an item from the sidebar.</p>
+              <button
+                onClick={() => setActiveSheet('Summary')}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg"
+              >
+                Go to Executive Summary
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Theme & Font Customizer Modal */}
+      {showThemeModal && (
+        <div
+          onClick={() => setShowThemeModal(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden"
+          >
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Palette className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900">Workspace Appearance</h3>
+              </div>
+              <button
+                onClick={() => setShowThemeModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-6">
+              {/* Color Themes */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 block">
                   Color Themes
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.values(THEMES).map((th) => {
-                    const isSelected = themeId === th.id;
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {Object.entries(THEMES).map(([id, t]) => {
+                    const isSelected = themeId === id;
                     return (
                       <button
-                        key={th.id}
-                        onClick={() => setThemeId(th.id)}
-                        className={`p-2.5 rounded-xl border text-left flex flex-col gap-1.5 transition ${
+                        key={id}
+                        onClick={() => setThemeId(id)}
+                        className={`p-3 rounded-xl border text-left transition flex items-center justify-between ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            ? 'border-indigo-600 bg-indigo-50/50 shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-800 truncate">{th.name}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.primary }}></span>
-                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.tableHeaderBg }}></span>
-                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: th.accentColor }}></span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Font Family Selection */}
-              <div className="mt-5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5 flex items-center gap-1.5">
-                  <Type className="w-4 h-4 text-slate-500" /> Font Family
-                </label>
-                <div className="space-y-1.5">
-                  {Object.values(FONTS).map((f) => {
-                    const isSelected = fontId === f.id;
-                    return (
-                      <button
-                        key={f.id}
-                        onClick={() => setFontId(f.id)}
-                        className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div>
-                          <span className="text-xs font-bold text-slate-800" style={{ fontFamily: f.family }}>
-                            {f.name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block" style={{ fontFamily: f.family }}>
-                            Sample text preview for checklist (670 Questions)
-                          </span>
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-4 h-4 rounded-full" style={{ backgroundColor: t.primary }} />
+                          <span className="text-xs font-semibold text-slate-800">{t.name}</span>
                         </div>
                         {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
                       </button>
@@ -397,45 +535,48 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
-                <button
-                  onClick={() => setShowThemeModal(false)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition"
-                >
-                  Done
-                </button>
+              {/* Typography Options */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 block">
+                  Typography & Font Family
+                </label>
+                <div className="space-y-2">
+                  {Object.entries(FONTS).map(([id, f]) => {
+                    const isSelected = fontId === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setFontId(id)}
+                        className={`w-full p-3 rounded-xl border text-left transition flex items-center justify-between ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/50 shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                        style={{ fontFamily: f.family }}
+                      >
+                        <div>
+                          <div className="text-sm font-bold text-slate-900">{f.name}</div>
+                          <div className="text-xs text-slate-400">{f.preview}</div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setShowThemeModal(false)}
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-xs transition"
+              >
+                Apply & Close
+              </button>
+            </div>
           </div>
-        )}
-
-        {/* Scrollable Sheet Content View */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-[#f8fafc]">
-          {activeSheet === 'Cover Page' && (
-            <CoverPage data={data} onChange={setData} theme={currentTheme} />
-          )}
-
-          {activeSheet === 'Audit Team' && (
-            <AuditTeam data={data} onChange={setData} theme={currentTheme} />
-          )}
-
-          {activeSheet === 'Summary' && (
-            <SummaryDashboard
-              data={computedData}
-              onSelectSheet={(sheetName) => setActiveSheet(sheetName)}
-              theme={currentTheme}
-            />
-          )}
-
-          {activeChecklist && (
-            <ChecklistSheet
-              checklist={activeChecklist}
-              onUpdateQuestion={handleUpdateQuestion}
-              theme={currentTheme}
-            />
-          )}
-        </main>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

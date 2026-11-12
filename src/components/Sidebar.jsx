@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  FileText,
-  Users,
+  FileCheck2,
   LayoutDashboard,
+  BarChart3,
+  Compass,
   Crown,
   Handshake,
   Scale,
@@ -26,15 +27,19 @@ import {
   ChevronRight,
   Award,
   Layers,
-  X
+  X,
+  Building2,
+  TrendingUp,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar({
-  sheets,
+  checklistSheets = [],
   activeSheet,
   onSelectSheet,
   getSheetScore,
-  overallScore,
+  unitMetrics = {},
+  selectedUnitId,
   isCollapsed,
   onToggleCollapse,
   isMobileOpen,
@@ -43,71 +48,91 @@ export default function Sidebar({
 }) {
   const [filterText, setFilterText] = useState('');
 
-  const getSheetIconConfig = (sheetName) => {
+  const getElementIcon = (sheetName) => {
     switch (sheetName) {
-      case 'Cover Page':
-        return { icon: <FileText className="w-4 h-4 text-emerald-400" /> };
-      case 'Audit Team':
-        return { icon: <Users className="w-4 h-4 text-sky-400" /> };
-      case 'Summary':
-        return { icon: <LayoutDashboard className="w-4 h-4 text-amber-400" /> };
       case 'EHS Leadership & Commitment':
-        return { icon: <Crown className="w-4 h-4 text-amber-300" /> };
+        return <Crown className="w-4 h-4 text-amber-300" />;
       case 'Employee Engagement':
-        return { icon: <Handshake className="w-4 h-4 text-purple-400" /> };
+        return <Handshake className="w-4 h-4 text-purple-400" />;
       case 'Statutory Compliance & Standa':
-        return { icon: <Scale className="w-4 h-4 text-blue-400" /> };
+        return <Scale className="w-4 h-4 text-blue-400" />;
       case 'HIRA':
-        return { icon: <Target className="w-4 h-4 text-rose-400" /> };
+        return <Target className="w-4 h-4 text-rose-400" />;
       case 'IH & OHS':
-        return { icon: <HeartPulse className="w-4 h-4 text-pink-400" /> };
+        return <HeartPulse className="w-4 h-4 text-pink-400" />;
       case 'CSM':
-        return { icon: <HardHat className="w-4 h-4 text-yellow-400" /> };
+        return <HardHat className="w-4 h-4 text-yellow-400" />;
       case 'Work Permit System':
-        return { icon: <KeyRound className="w-4 h-4 text-emerald-400" /> };
+        return <KeyRound className="w-4 h-4 text-emerald-400" />;
       case 'Training, Awareness and Compete':
-        return { icon: <GraduationCap className="w-4 h-4 text-violet-400" /> };
+        return <GraduationCap className="w-4 h-4 text-violet-400" />;
       case 'PSI':
-        return { icon: <Database className="w-4 h-4 text-cyan-400" /> };
+        return <Database className="w-4 h-4 text-cyan-400" />;
       case 'PHA':
-        return { icon: <Workflow className="w-4 h-4 text-indigo-400" /> };
+        return <Workflow className="w-4 h-4 text-indigo-400" />;
       case 'Mechanical Integrity':
-        return { icon: <Wrench className="w-4 h-4 text-slate-300" /> };
+        return <Wrench className="w-4 h-4 text-slate-300" />;
       case 'MOC':
-        return { icon: <RefreshCw className="w-4 h-4 text-teal-400" /> };
+        return <RefreshCw className="w-4 h-4 text-teal-400" />;
       case 'PSSR':
-        return { icon: <PlayCircle className="w-4 h-4 text-lime-400" /> };
+        return <PlayCircle className="w-4 h-4 text-lime-400" />;
       case 'Workplace Hazards':
-        return { icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> };
+        return <AlertTriangle className="w-4 h-4 text-amber-400" />;
       case 'Chemical Hazards':
-        return { icon: <FlaskConical className="w-4 h-4 text-fuchsia-400" /> };
+        return <FlaskConical className="w-4 h-4 text-fuchsia-400" />;
       case 'FIRE AND EXPLOSION HAZARD':
-        return { icon: <Flame className="w-4 h-4 text-orange-400" /> };
+        return <Flame className="w-4 h-4 text-orange-400" />;
       case 'Electrical Safety':
-        return { icon: <Zap className="w-4 h-4 text-yellow-300" /> };
+        return <Zap className="w-4 h-4 text-yellow-300" />;
       case 'Emergency Planning & Respon':
-        return { icon: <Siren className="w-4 h-4 text-red-400" /> };
+        return <Siren className="w-4 h-4 text-red-400" />;
       case 'Incident Investigation':
-        return { icon: <Search className="w-4 h-4 text-blue-300" /> };
+        return <Search className="w-4 h-4 text-blue-300" />;
       default:
-        return { icon: <FileText className="w-4 h-4 text-slate-300" /> };
+        return <FileCheck2 className="w-4 h-4 text-slate-300" />;
     }
   };
 
-  const coreSheets = ['Cover Page', 'Audit Team', 'Summary'];
-  const checklistSheets = sheets.filter((s) => !coreSheets.includes(s));
+  const coreSections = [
+    {
+      id: 'Audit',
+      label: 'Comprehensive Safety Audit',
+      badge: 'Assessment',
+      icon: <FileCheck2 className="w-4 h-4 text-emerald-400" />
+    },
+    {
+      id: 'Summary',
+      label: 'Summary & Unit Benchmark',
+      badge: 'Overview',
+      icon: <LayoutDashboard className="w-4 h-4 text-amber-400" />
+    },
+    {
+      id: 'Analytics',
+      label: '6 Units Interactive Analytics',
+      badge: 'Compare',
+      icon: <BarChart3 className="w-4 h-4 text-sky-400" />
+    },
+    {
+      id: 'Criteria',
+      label: 'Criteria & Maturity Mapping',
+      badge: 'Rubric',
+      icon: <Compass className="w-4 h-4 text-purple-400" />
+    }
+  ];
 
   const filteredChecklists = checklistSheets.filter((s) => {
     if (!filterText) return true;
     return s.toLowerCase().includes(filterText.toLowerCase());
   });
 
-  const handleItemClick = (sheet) => {
-    onSelectSheet(sheet);
+  const handleItemClick = (sheetId) => {
+    onSelectSheet(sheetId);
     if (onCloseMobile) {
       onCloseMobile();
     }
   };
+
+  const currentMetric = unitMetrics[selectedUnitId] || { postCapaScorePct: 0 };
 
   return (
     <>
@@ -129,19 +154,22 @@ export default function Sidebar({
           ${isCollapsed ? 'md:w-16' : 'md:w-72 lg:w-80'}
         `}
       >
-        {/* Sidebar Header */}
-        <div className={`h-14 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}>
+        {/* Sidebar Header with Org EHS Maturity Branding */}
+        <div
+          className={`h-16 border-b ${theme.sidebarBorder} px-3.5 flex items-center justify-between ${theme.sidebarHeaderBg} shrink-0`}
+        >
           {(!isCollapsed || isMobileOpen) && (
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
-                style={{ backgroundColor: theme.primary }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md bg-indigo-600"
               >
-                <Layers className="w-4 h-4 text-white" />
+                <ShieldCheck className="w-5 h-5 text-white" />
               </div>
               <div className="truncate">
-                <h2 className="text-xs font-bold text-white uppercase tracking-wider">Audit Sections</h2>
-                <p className="text-[10px] text-slate-400">22 Elements</p>
+                <h1 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
+                  <span>Org EHS Maturity</span>
+                </h1>
+                <p className="text-[10px] text-indigo-300 font-medium">6 Units Audit Platform</p>
               </div>
             </div>
           )}
@@ -149,7 +177,7 @@ export default function Sidebar({
           {/* Desktop Collapse Toggle */}
           <button
             onClick={onToggleCollapse}
-            className={`hidden md:block p-1.5 rounded-md hover:bg-white/10 text-slate-400 hover:text-white transition ${
+            className={`hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition ${
               isCollapsed ? 'mx-auto' : ''
             }`}
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
@@ -174,15 +202,15 @@ export default function Sidebar({
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search sections or elements..."
+                placeholder="Search audit elements..."
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
-                className="w-full text-xs bg-white/5 text-slate-100 placeholder-slate-500 rounded-md pl-8 pr-2.5 py-1.5 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition"
+                className="w-full text-xs bg-white/5 text-slate-100 placeholder-slate-400 rounded-lg pl-8 pr-2.5 py-1.5 border border-white/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition"
               />
               {filterText && (
                 <button
                   onClick={() => setFilterText('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -192,40 +220,37 @@ export default function Sidebar({
         )}
 
         {/* Navigation Links Scrollable List */}
-        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-4">
-          {/* Core Pages (Cover, Team, Summary) */}
+        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+          {/* Main Sections */}
           <div>
             {(!isCollapsed || isMobileOpen) && (
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5">
-                Overview & Reports
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1.5 flex items-center justify-between">
+                <span>Core Framework</span>
+                <span className="text-[9px] text-slate-500">4 Modules</span>
               </div>
             )}
             <div className="space-y-1">
-              {coreSheets.map((sheet) => {
-                const isActive = activeSheet === sheet;
-                const isSummary = sheet === 'Summary';
-                const iconConfig = getSheetIconConfig(sheet);
+              {coreSections.map((sec) => {
+                const isActive = activeSheet === sec.id;
 
                 return (
                   <button
-                    key={sheet}
-                    onClick={() => handleItemClick(sheet)}
-                    title={isCollapsed && !isMobileOpen ? sheet : undefined}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                    key={sec.id}
+                    onClick={() => handleItemClick(sec.id)}
+                    title={isCollapsed && !isMobileOpen ? sec.label : undefined}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
                       isActive
                         ? `${theme.activeTabBg} text-white font-bold shadow-md`
-                        : isSummary
-                        ? 'bg-white/5 hover:bg-white/10 text-amber-200'
                         : 'hover:bg-white/5 text-slate-300 hover:text-white'
                     } ${isCollapsed && !isMobileOpen ? 'justify-center px-1' : ''}`}
                   >
-                    <div className="shrink-0 p-1 rounded-md bg-white/5">{iconConfig.icon}</div>
+                    <div className="shrink-0 p-1.5 rounded-lg bg-white/5">{sec.icon}</div>
                     {(!isCollapsed || isMobileOpen) && (
                       <div className="flex-1 text-left flex items-center justify-between min-w-0">
-                        <span className="truncate">{sheet}</span>
-                        {isSummary && (
-                          <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded shadow-xs">
-                            {(overallScore * 100).toFixed(1)}%
+                        <span className="truncate">{sec.label}</span>
+                        {sec.id === 'Summary' && (
+                          <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded shadow-2xs">
+                            {currentMetric.postCapaScorePct.toFixed(1)}%
                           </span>
                         )}
                       </div>
@@ -236,88 +261,56 @@ export default function Sidebar({
             </div>
           </div>
 
-          {/* Audit Checklist Elements (19 Elements) */}
+          {/* 19 Audit Checklist Elements */}
           <div>
             {(!isCollapsed || isMobileOpen) && (
               <div className="flex items-center justify-between px-2 mb-1.5">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Audit Elements ({filteredChecklists.length})
+                  Audit Elements
                 </span>
-                <span className="text-[9px] text-slate-500">19 Elements</span>
+                <span className="text-[9px] text-slate-500">19 Checklists</span>
               </div>
             )}
 
             <div className="space-y-1">
-              {filteredChecklists.map((sheet, idx) => {
+              {filteredChecklists.map((sheet, index) => {
                 const isActive = activeSheet === sheet;
-                const score = getSheetScore(sheet);
-                const scorePct = score !== null && score !== undefined ? Math.round(score * 100) : null;
-                const iconConfig = getSheetIconConfig(sheet);
-
-                let badgeColor = 'bg-slate-800 text-slate-400';
-                let barColor = 'bg-slate-600';
-                if (scorePct !== null) {
-                  if (scorePct >= 75) {
-                    badgeColor = 'bg-emerald-950 text-emerald-400 border border-emerald-800/60';
-                    barColor = 'bg-emerald-500';
-                  } else if (scorePct >= 50) {
-                    badgeColor = 'bg-amber-950 text-amber-400 border border-amber-800/60';
-                    barColor = 'bg-amber-500';
-                  } else {
-                    badgeColor = 'bg-rose-950 text-rose-400 border border-rose-800/60';
-                    barColor = 'bg-rose-500';
-                  }
-                }
+                const scoreData = getSheetScore ? getSheetScore(sheet) : null;
+                const icon = getElementIcon(sheet);
 
                 return (
                   <button
                     key={sheet}
                     onClick={() => handleItemClick(sheet)}
-                    title={isCollapsed && !isMobileOpen ? `${idx + 1}. ${sheet} (${scorePct ?? 0}%)` : undefined}
-                    className={`w-full group flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-xs transition-all relative ${
+                    title={isCollapsed && !isMobileOpen ? `${index + 1}. ${sheet}` : undefined}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs transition-all ${
                       isActive
-                        ? `${theme.activeTabBg} text-white font-bold shadow-md`
+                        ? `${theme.activeTabBg} text-white font-bold shadow-sm`
                         : 'hover:bg-white/5 text-slate-300 hover:text-white'
                     } ${isCollapsed && !isMobileOpen ? 'justify-center px-1' : ''}`}
                   >
-                    <div className="shrink-0 p-1 rounded-md bg-white/5">{iconConfig.icon}</div>
+                    <div className="shrink-0 p-1 rounded-md bg-white/5">{icon}</div>
 
-                    {!isCollapsed || isMobileOpen ? (
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="truncate text-xs">
-                            <span className="text-slate-400 font-mono text-[10px] mr-1.5">
-                              {idx + 1}.
-                            </span>
-                            {sheet}
-                          </span>
-
-                          {scorePct !== null && (
-                            <span
-                              className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${badgeColor}`}
-                            >
-                              {scorePct}%
-                            </span>
-                          )}
+                    {(!isCollapsed || isMobileOpen) && (
+                      <div className="flex-1 text-left flex items-center justify-between min-w-0">
+                        <div className="truncate">
+                          <span className="text-[10px] font-mono opacity-50 mr-1.5">{index + 1}.</span>
+                          <span>{sheet}</span>
                         </div>
-
-                        {scorePct !== null && (
-                          <div className="w-full bg-black/40 rounded-full h-1 mt-1 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${barColor}`}
-                              style={{ width: `${Math.min(scorePct, 100)}%` }}
-                            ></div>
-                          </div>
+                        {scoreData && (
+                          <span
+                            className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ml-1 shrink-0 ${
+                              scoreData.pct < 50
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                : scoreData.pct < 75
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            }`}
+                          >
+                            {scoreData.pct.toFixed(0)}%
+                          </span>
                         )}
                       </div>
-                    ) : (
-                      scorePct !== null && (
-                        <span
-                          className={`absolute right-1 top-1 w-2 h-2 rounded-full ${
-                            scorePct >= 75 ? 'bg-emerald-400' : scorePct >= 50 ? 'bg-amber-400' : 'bg-rose-400'
-                          }`}
-                        />
-                      )
                     )}
                   </button>
                 );
@@ -326,22 +319,20 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Sidebar Footer */}
+        {/* Sidebar Footer with Active Focus Unit Indicator */}
         {(!isCollapsed || isMobileOpen) && (
-          <div className="p-3 border-t border-white/5 bg-black/25 text-xs shrink-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <Award className="w-3.5 h-3.5 text-amber-400" /> Benchmark Score
-              </span>
-              <span className="font-mono font-black text-emerald-400 text-sm">
-                {(overallScore * 100).toFixed(1)}%
-              </span>
+          <div className="p-3 border-t border-white/10 bg-black/30 shrink-0 text-xs">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-[10px] uppercase font-bold tracking-wider">Active Focus</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-semibold">Post-CAPA</span>
             </div>
-            <div className="w-full bg-black/40 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full"
-                style={{ width: `${Math.min(overallScore * 100, 100)}%` }}
-              ></div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="font-semibold text-white truncate max-w-[150px]">
+                {unitMetrics[selectedUnitId]?.unitName || selectedUnitId}
+              </span>
+              <span className="font-mono font-bold text-indigo-300">
+                {currentMetric.postCapaScorePct.toFixed(1)}%
+              </span>
             </div>
           </div>
         )}

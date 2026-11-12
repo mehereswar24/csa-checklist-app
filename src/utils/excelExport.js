@@ -1,32 +1,88 @@
 import * as XLSX from 'xlsx';
 
-export function exportToExcel(data) {
+export function exportToExcel(data, selectedUnitId = 'unit_1') {
   const wb = XLSX.utils.book_new();
 
-  // 1. Cover Page
-  const cpRows = [
-    ['', '', '', data.cover_page.title || 'Comprehensive Safety Audit'],
+  const units = data.units || [];
+  const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0] || {};
+  const cp = currentUnit.cover_page || {};
+
+  // 1. Multi-Unit Benchmark Summary Sheet
+  const benchmarkRows = [
+    ['Org EHS Maturity - Multi-Unit Cross Benchmark Report'],
+    [`Generated Date: ${new Date().toLocaleDateString()}`],
     [],
-    [],
-    [],
-    [],
-    ['', 'Document No:', data.cover_page.document_no || '', '', '', '', '', 'Report prepared Date: ', '', data.cover_page.report_date || ''],
-    ['', 'Unit Location :', data.cover_page.unit_location || '', '', '', '', '', 'Assessment Start date: ', data.cover_page.start_date || '', 'Assessment End Date : ', data.cover_page.end_date || ''],
-    [],
-    ['', '#', 'Auditor Name', '', 'Designation', '#', 'Auditee Name', '', 'Designation', 'Description (if any)']
+    ['Unit Code', 'Unit Facility Name', 'Location', 'Baseline Score %', 'Post-CAPA Score %', 'CAPA Delta Gain', 'Maturity Level']
   ];
 
-  const maxRows = Math.max(data.cover_page.auditors.length, data.cover_page.auditees.length);
-  for (let i = 0; i < maxRows; i++) {
-    const auditor = data.cover_page.auditors[i] || {};
-    const auditee = data.cover_page.auditees[i] || {};
+  units.forEach((u) => {
+    let bTotal = 0;
+    let pTotal = 0;
+    let maxTotal = 0;
+
+    u.checklists.forEach((cl) => {
+      const div = cl.divisor_count || cl.questions.length || 1;
+      maxTotal += div * 4;
+      cl.questions.forEach((q) => {
+        const b = typeof q.score === 'number' ? q.score : 0;
+        bTotal += b;
+        const add =
+          q.capa_verification_score !== null && q.capa_verification_score !== undefined
+            ? Number(q.capa_verification_score)
+            : q.capa_score !== null && q.capa_score !== undefined
+            ? Number(q.capa_score)
+            : 0;
+        pTotal += Math.min(4, b + add);
+      });
+    });
+
+    const bPct = maxTotal > 0 ? (bTotal / maxTotal) * 100 : 0;
+    const pPct = maxTotal > 0 ? (pTotal / maxTotal) * 100 : 0;
+    const dPct = pPct - bPct;
+
+    const ml = (data.maturity_levels || []).find((m) => pPct / 100 >= m.min && pPct / 100 <= m.max) || {
+      level: 'Level - I'
+    };
+
+    benchmarkRows.push([
+      u.code,
+      u.name,
+      u.cover_page?.location || '',
+      `${bPct.toFixed(1)}%`,
+      `${pPct.toFixed(1)}%`,
+      `+${dPct.toFixed(1)}%`,
+      ml.level
+    ]);
+  });
+
+  const bmSheet = XLSX.utils.aoa_to_sheet(benchmarkRows);
+  XLSX.utils.book_append_sheet(wb, bmSheet, 'Org Units Benchmark');
+
+  // 2. Comprehensive Safety Audit (Cover Page & Team) for Active Unit
+  const cpRows = [
+    ['', '', '', cp.title || `Comprehensive Safety Audit - ${currentUnit.name}`],
+    [],
+    ['', 'Assessment Stage:', cp.assessment_stage || '', '', '', '', '', 'Report Date:', cp.report_date || ''],
+    ['', 'Document No:', cp.document_no || '', '', '', '', '', 'Hazard Class:', cp.hazard_classification || ''],
+    ['', 'Unit Location:', cp.location || '', '', '', '', '', 'Start Date:', cp.start_date || '', 'End Date:', cp.end_date || ''],
+    [],
+    ['', '#', 'Auditor Name', '', 'Designation', '#', 'Auditee Name', '', 'Designation', 'Role / Department']
+  ];
+
+  const auditors = cp.auditors || [];
+  const auditees = cp.auditees || [];
+  const maxTeamRows = Math.max(auditors.length, auditees.length);
+
+  for (let i = 0; i < maxTeamRows; i++) {
+    const auditor = auditors[i] || {};
+    const auditee = auditees[i] || {};
     cpRows.push([
       '',
-      auditor.s_no || (i < data.cover_page.auditors.length ? i + 1 : ''),
+      auditor.s_no || (i < auditors.length ? i + 1 : ''),
       auditor.name || '',
       '',
       auditor.designation || '',
-      auditee.s_no || (i < data.cover_page.auditees.length ? i + 1 : ''),
+      auditee.s_no || (i < auditees.length ? i + 1 : ''),
       auditee.name || '',
       '',
       auditee.designation || '',
@@ -35,107 +91,81 @@ export function exportToExcel(data) {
   }
 
   const cpSheet = XLSX.utils.aoa_to_sheet(cpRows);
-  XLSX.utils.book_append_sheet(wb, cpSheet, 'Cover Page');
+  XLSX.utils.book_append_sheet(wb, cpSheet, 'Assessment & Team');
 
-  // 2. Audit Team
-  const atRows = [
-    ['', '', '', data.audit_team.title || 'Comprehensive Safety Audit'],
-    [],
-    ['', 'Unit', data.audit_team.unit || '', '', '', '', '', '', 'Date', data.audit_team.date || ''],
-    ['', 'Location', data.audit_team.location || ''],
-    ['', 'S.No', 'Auditor Name', '', 'Designation', 'S.No', 'Auditee Name', '', 'Designation', 'Signature '],
-  ];
-
-  const maxAtRows = Math.max(data.audit_team.auditors.length, data.audit_team.auditees.length);
-  for (let i = 0; i < maxAtRows; i++) {
-    const auditor = data.audit_team.auditors[i] || {};
-    const auditee = data.audit_team.auditees[i] || {};
-    atRows.push([
-      '',
-      auditor.s_no || (i < data.audit_team.auditors.length ? i + 1 : ''),
-      auditor.name || '',
-      '',
-      auditor.designation || '',
-      auditee.s_no || (i < data.audit_team.auditees.length ? i + 1 : ''),
-      auditee.name || '',
-      '',
-      auditee.designation || '',
-      auditee.signature || ''
-    ]);
-  }
-
-  const atSheet = XLSX.utils.aoa_to_sheet(atRows);
-  XLSX.utils.book_append_sheet(wb, atSheet, 'Audit Team');
-
-  // 3. Summary
-  const smRows = [
-    [data.summary.title || 'Safety Management System & Process Safety Management System - Gap Assessment'],
-    [],
-    [],
-    ['Sl No', ' Element', 'Element Score'],
-  ];
-
-  let sumRowIdx = 5;
-  data.summary.elements.forEach((elem, idx) => {
-    // Dynamic score from checklists if present
-    const cl = data.checklists.find(c => c.sheet_name === elem.sheet_ref);
-    let score = elem.score;
-    if (cl && cl.computedScore !== undefined) {
-      score = cl.computedScore;
-    }
-    smRows.push([idx + 1, elem.element_name, score]);
-    sumRowIdx++;
-  });
-
-  const avgFormula = `AVERAGE(C5:C${sumRowIdx - 1})`;
-  const overallAvg = data.computedOverallScore !== undefined ? data.computedOverallScore : data.summary.overall_score;
-  smRows.push(['Overall benchmarking score:', '', overallAvg]);
-  smRows.push([]);
-  smRows.push([]);
-  smRows.push(['', 'Degree of Compliance - Scoring criteria for individual checkpoints', 'Score']);
-  data.summary.scoring_criteria.forEach(sc => {
-    smRows.push(['', sc.degree, sc.score]);
-  });
-  smRows.push([]);
-  smRows.push(['Maturity Level', 'Maturity Mapping Criteria', 'Overall score']);
-  data.summary.maturity_levels.forEach(ml => {
-    smRows.push([ml.level, ml.criteria, ml.range]);
-  });
-
-  const smSheet = XLSX.utils.aoa_to_sheet(smRows);
-  XLSX.utils.book_append_sheet(wb, smSheet, 'Summary');
-
-  // 4. Checklist Sheets
-  data.checklists.forEach(cl => {
+  // 3. Element Checklists for Active Unit
+  (currentUnit.checklists || []).forEach((cl) => {
     const rows = [
       [cl.title || cl.sheet_name],
+      [`Unit: ${currentUnit.name} (${currentUnit.code})`],
       [],
-      ['S.No', 'CHECKLIST OBSERVATION', 'Auditor Verification', 'COMPLIANCE STATUS', 'OBSERVATION', 'SCORE', 'RECOMMENDATIONS', 'REMARKS']
+      [
+        'S.No',
+        'CHECKLIST OBSERVATION',
+        'Auditor Verification Guidelines',
+        'COMPLIANCE STATUS',
+        'OBSERVATION',
+        'BASELINE SCORE (LOCKED)',
+        'RECOMMENDATIONS',
+        'CAPA ACTION',
+        'CAPA SCORE',
+        'CAPA DUE DATE',
+        'CAPA VERIFICATION',
+        'EFFECTIVE SCORE'
+      ]
     ];
 
-    cl.questions.forEach(q => {
+    let bTotal = 0;
+    let pTotal = 0;
+
+    cl.questions.forEach((q) => {
+      const bScore = typeof q.score === 'number' ? q.score : 0;
+      const capaAdd =
+        q.capa_verification_score !== null && q.capa_verification_score !== undefined
+          ? Number(q.capa_verification_score)
+          : q.capa_score !== null && q.capa_score !== undefined
+          ? Number(q.capa_score)
+          : 0;
+      const effective = Math.min(4, bScore + capaAdd);
+
+      bTotal += bScore;
+      pTotal += effective;
+
       rows.push([
         q.s_no,
         q.checklist_observation,
         q.auditor_verification,
         q.compliance_status || '',
         q.observation || '',
-        q.score !== null && q.score !== undefined ? q.score : '',
+        bScore,
         q.recommendations || '',
-        q.remarks || ''
+        q.capa_action || '',
+        q.capa_score !== null && q.capa_score !== undefined ? q.capa_score : '',
+        q.capa_date || '',
+        q.capa_verification_score !== null && q.capa_verification_score !== undefined ? q.capa_verification_score : '',
+        effective
       ]);
     });
 
-    const totalScore = cl.computedTotal !== undefined ? cl.computedTotal : cl.initial_total;
-    const compScore = cl.computedScore !== undefined ? cl.computedScore : cl.initial_compliance_score;
+    const divisor = cl.divisor_count || cl.questions.length || 1;
+    const maxP = divisor * 4;
 
-    rows.push(['', 'TOTAL', '', '', '', totalScore, '', '']);
-    rows.push(['', 'ELEMENT COMPLIANCE SCORE', '', '', '', compScore, cl.title || cl.sheet_name, '']);
+    rows.push(['', 'TOTAL BASELINE SCORE', '', '', '', bTotal, '', '', '', '', '', '']);
+    rows.push(['', 'TOTAL POST-CAPA SCORE', '', '', '', '', '', '', '', '', '', pTotal]);
+    rows.push([
+      '',
+      'BASELINE COMPLIANCE %',
+      `${((bTotal / maxP) * 100).toFixed(1)}%`,
+      '',
+      '',
+      'POST-CAPA COMPLIANCE %',
+      `${((pTotal / maxP) * 100).toFixed(1)}%`
+    ]);
 
     const sheet = XLSX.utils.aoa_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, sheet, cl.sheet_name.substring(0, 31));
   });
 
-  // Export
-  XLSX.writeFile(wb, `CSA_Checklist_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  // Export File
+  XLSX.writeFile(wb, `Org_EHS_Maturity_${currentUnit.code || 'Report'}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
