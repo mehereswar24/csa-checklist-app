@@ -113,12 +113,6 @@ export default function Sidebar({
       label: '6 Units Interactive Analytics',
       badge: 'Compare',
       icon: <BarChart3 className="w-4 h-4 text-sky-400" />
-    },
-    {
-      id: 'Criteria',
-      label: 'Criteria & Maturity Mapping',
-      badge: 'Rubric',
-      icon: <Compass className="w-4 h-4 text-purple-400" />
     }
   ];
 

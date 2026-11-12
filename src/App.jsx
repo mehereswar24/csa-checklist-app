@@ -483,12 +483,14 @@ export default function App() {
               unitMetrics={unitMetrics}
               theme={currentTheme}
             />
-          ) : activeSheet === 'Summary' ? (
+          ) : activeSheet === 'Summary' || activeSheet === 'Criteria' ? (
             <SummaryDashboard
               units={data.units}
               selectedUnitId={selectedUnitId}
               onSelectUnit={setSelectedUnitId}
               unitMetrics={unitMetrics}
+              scoringCriteria={data.scoring_criteria}
+              maturityLevels={data.maturity_levels}
               onSelectSheet={(sheet) => setActiveSheet(sheet)}
               theme={currentTheme}
             />
@@ -496,15 +498,6 @@ export default function App() {
             <InteractiveAnalytics
               units={data.units}
               elementsMeta={data.elements_meta}
-              unitMetrics={unitMetrics}
-              onNavigateToUnitSummary={handleNavigateToUnitSummary}
-              theme={currentTheme}
-            />
-          ) : activeSheet === 'Criteria' ? (
-            <CriteriaAndMaturity
-              units={data.units}
-              scoringCriteria={data.scoring_criteria}
-              maturityLevels={data.maturity_levels}
               unitMetrics={unitMetrics}
               onNavigateToUnitSummary={handleNavigateToUnitSummary}
               theme={currentTheme}
