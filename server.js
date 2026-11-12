@@ -63,3 +63,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`CSA Checklist Web Application running at http://localhost:${PORT}/`);
   console.log(`Serving production build from: ${DIST_DIR}`);
 });
+
+// Keep event loop active
+process.stdin.resume();
+setInterval(() => {}, 1000 * 60 * 60);

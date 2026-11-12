@@ -10,13 +10,17 @@ import {
   Check,
   AlertCircle,
   Lock,
+  Unlock,
+  Key,
   Calendar,
   Sparkles,
   ShieldCheck,
   CheckCircle2,
   Building2,
   TrendingUp,
-  HelpCircle
+  HelpCircle,
+  X,
+  Award
 } from 'lucide-react';
 import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
 
@@ -49,6 +53,12 @@ export default function ChecklistSheet({
   const [viewMode, setViewMode] = useState(() => {
     return typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table';
   });
+
+  // Admin Unlock State & PIN verification
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
+  const [pinError, setPinError] = useState('');
 
   const [expandedVerifications, setExpandedVerifications] = useState({});
 
@@ -83,15 +93,34 @@ export default function ChecklistSheet({
   };
 
   // Compute live totals
-  const { baselineTotal, postCapaTotal, divisor, maxPossible, baselinePct, postCapaPct, deltaPct } = useMemo(() => {
+  const {
+    baselineTotal,
+    postCapaTotal,
+    divisor,
+    maxPossible,
+    baselinePct,
+    postCapaPct,
+    deltaPct,
+    openCapaCount,
+    verifiedCapaCount
+  } = useMemo(() => {
     const questions = checklist.questions || [];
     let bTotal = 0;
     let pTotal = 0;
+    let openC = 0;
+    let verifiedC = 0;
 
     questions.forEach((q) => {
       const bScore = typeof q.score === 'number' ? q.score : 0;
       bTotal += bScore;
       pTotal += getEffectiveScore(q);
+
+      if (q.capa_action && (q.capa_verification_score === null || q.capa_verification_score === undefined || q.capa_verification_score === '')) {
+        openC++;
+      }
+      if (q.capa_verification_score !== null && q.capa_verification_score !== undefined && q.capa_verification_score !== '') {
+        verifiedC++;
+      }
     });
 
     const div = checklist.divisor_count || questions.length || 1;
@@ -106,7 +135,9 @@ export default function ChecklistSheet({
       maxPossible: maxP,
       baselinePct: bPct,
       postCapaPct: pPct,
-      deltaPct: pPct - bPct
+      deltaPct: pPct - bPct,
+      openCapaCount: openC,
+      verifiedCapaCount: verifiedC
     };
   }, [checklist.questions, checklist.divisor_count]);
 
@@ -132,6 +163,19 @@ export default function ChecklistSheet({
       return matchSearch && matchScore && matchStatus;
     });
   }, [checklist.questions, searchTerm, scoreFilter, statusFilter]);
+
+  const handleAdminUnlockSubmit = (e) => {
+    if (e) e.preventDefault();
+    // Default PIN: admin123 or blank for easy unlock
+    if (adminPin.trim() === 'admin123' || adminPin.trim() === 'admin' || adminPin.trim() === '') {
+      setIsAdminUnlocked(true);
+      setShowPinModal(false);
+      setAdminPin('');
+      setPinError('');
+    } else {
+      setPinError('Incorrect PIN. (Default admin key: admin123)');
+    }
+  };
 
   const renderVerificationText = (text) => {
     if (!text) return <span className="text-slate-400 italic">No verification guideline provided</span>;
@@ -176,9 +220,20 @@ export default function ChecklistSheet({
 
   const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0];
 
+  // Element Maturity Tier
+  const getElementTier = (pct) => {
+    if (pct < 25) return { level: 'Level - I', label: 'Initial Awareness', badge: 'bg-rose-100 text-rose-800 border-rose-300' };
+    if (pct < 50) return { level: 'Level - II', label: 'Reactive Phase', badge: 'bg-amber-100 text-amber-800 border-amber-300' };
+    if (pct < 75) return { level: 'Level - III', label: 'Documented & Systemic', badge: 'bg-blue-100 text-blue-800 border-blue-300' };
+    if (pct < 85) return { level: 'Level - IV', label: 'Proactive & Managed', badge: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+    return { level: 'Level - V', label: 'Resilient & Sustained', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  };
+
+  const elementTier = getElementTier(postCapaPct);
+
   return (
-    <div className="max-w-[2000px] mx-auto space-y-4 md:space-y-5 pb-12">
-      {/* Element Header Card */}
+    <div className="max-w-[2000px] mx-auto space-y-5 pb-16">
+      {/* Top Header Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 transition-all">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4 md:pb-5">
           <div>
@@ -199,13 +254,13 @@ export default function ChecklistSheet({
             </h1>
           </div>
 
-          {/* Unit Switcher & KPI Pills */}
+          {/* Unit Switcher & Live KPI Header Pills */}
           <div className="flex flex-wrap items-center gap-3">
             {units.length > 0 && onSelectUnit && (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
                 <Building2 className="w-4 h-4 text-indigo-600" />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Unit</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Focus Unit</span>
                   <select
                     value={selectedUnitId}
                     onChange={(e) => onSelectUnit(e.target.value)}
@@ -244,7 +299,7 @@ export default function ChecklistSheet({
 
               <div className="bg-emerald-50 border border-emerald-200 p-2 md:px-3 md:py-2 rounded-xl text-center">
                 <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                  CAPA Gain
+                  Gain
                 </div>
                 <div className="text-sm md:text-base font-bold text-emerald-800 font-mono">
                   +{deltaPct.toFixed(1)}%
@@ -255,7 +310,7 @@ export default function ChecklistSheet({
           </div>
         </div>
 
-        {/* Filter and Search Bar */}
+        {/* Filter, Search Bar & Admin Unlock Trigger */}
         <div className="mt-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -274,6 +329,27 @@ export default function ChecklistSheet({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Admin Unlock Button */}
+            {isAdminUnlocked ? (
+              <button
+                onClick={() => setIsAdminUnlocked(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold shadow-2xs hover:bg-emerald-100 transition"
+                title="Admin Mode Active: Scores Unlocked. Click to re-lock scores."
+              >
+                <Unlock className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                <span>Scores Unlocked (Admin)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPinModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:border-indigo-400 bg-white hover:bg-indigo-50/50 text-slate-700 hover:text-indigo-700 text-xs font-semibold shadow-2xs transition"
+                title="Admin Authentication to Unlock Baseline Audit Scores"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Admin: Unlock Scores</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
               <select
@@ -304,7 +380,7 @@ export default function ChecklistSheet({
               </select>
             </div>
 
-            {/* View Mode Switcher (Desktop/Mobile) */}
+            {/* View Mode Switcher */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
               <button
                 onClick={() => setViewMode('table')}
@@ -337,17 +413,44 @@ export default function ChecklistSheet({
           </div>
         </div>
 
-        {/* Audit Lock Policy Notice */}
-        <div className="mt-3 py-2 px-3 rounded-lg bg-amber-50/70 border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+        {/* Audit Lock / Admin Unlock Banner */}
+        <div
+          className={`mt-3 py-2 px-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+            isAdminUnlocked
+              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-900'
+              : 'bg-amber-50/70 border-amber-200 text-amber-900'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-            <span>
-              <strong>Locked Audit Baseline:</strong> Original audit score cannot be modified. Entering CAPA score / verification reflects an added score to determine post-rectification compliance.
+            {isAdminUnlocked ? (
+              <>
+                <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Admin Mode Active:</strong> Baseline audit scores (0-4) are unlocked and editable. Any changes recalculate the element score immediately.
+                </span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  <strong>Baseline Audit Scores Locked:</strong> Baseline score is locked to preserve historical evaluation. Click <em>"Admin: Unlock Scores"</em> to enable adjustments.
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdminUnlocked && (
+              <button
+                onClick={() => setIsAdminUnlocked(false)}
+                className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold text-[10px] hover:bg-emerald-700 transition"
+              >
+                Re-Lock Scores
+              </button>
+            )}
+            <span className="text-[11px] font-semibold text-slate-600">
+              {filteredQuestions.length} of {checklist.questions.length} Items Displayed
             </span>
           </div>
-          <span className="text-[11px] font-semibold text-amber-800">
-            {filteredQuestions.length} of {checklist.questions.length} Items Displayed
-          </span>
         </div>
       </div>
 
@@ -420,9 +523,11 @@ export default function ChecklistSheet({
                   </th>
                   <th
                     style={{ width: `${widths.score}px` }}
-                    className="px-3 py-3 border-r border-slate-200 relative select-none"
+                    className={`px-3 py-3 border-r border-slate-200 relative select-none ${
+                      isAdminUnlocked ? 'bg-emerald-50/50 text-emerald-900 font-extrabold' : ''
+                    }`}
                   >
-                    Score (Locked)
+                    {isAdminUnlocked ? 'Score (Unlocked)' : 'Score (Locked)'}
                     <ResizeHandle
                       columnId="score"
                       onMouseDown={handleMouseDown}
@@ -551,15 +656,31 @@ export default function ChecklistSheet({
                         />
                       </td>
 
-                      {/* Score Dropdown (0 - 4) - LOCKED */}
-                      <td className="px-3 py-3 border-r border-slate-200 align-top">
+                      {/* Score Dropdown (0 - 4) - Admin Unlocked / Locked */}
+                      <td
+                        className={`px-3 py-3 border-r border-slate-200 align-top ${
+                          isAdminUnlocked ? 'bg-emerald-50/30' : ''
+                        }`}
+                      >
                         <div className="space-y-1">
                           <div className="relative">
                             <select
                               value={q.score ?? ''}
-                              disabled
-                              title="Score cannot be changed"
-                              className="w-full bg-slate-100 text-slate-700 font-bold text-xs px-2 py-1.5 rounded border border-slate-300 cursor-not-allowed opacity-90 appearance-none pr-6"
+                              disabled={!isAdminUnlocked}
+                              onChange={(e) =>
+                                onUpdateQuestion(
+                                  checklist.sheet_name,
+                                  q.id,
+                                  'score',
+                                  e.target.value === '' ? null : Number(e.target.value)
+                                )
+                              }
+                              title={isAdminUnlocked ? 'Admin Mode: Select score 0 to 4' : 'Score cannot be changed'}
+                              className={`w-full font-bold text-xs px-2 py-1.5 rounded border appearance-none pr-6 transition ${
+                                isAdminUnlocked
+                                  ? 'bg-white text-emerald-950 border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer shadow-2xs'
+                                  : 'bg-slate-100 text-slate-700 border-slate-300 cursor-not-allowed opacity-90'
+                              }`}
                             >
                               <option value="0">0 - No System</option>
                               <option value="1">1 - Inadequate</option>
@@ -567,11 +688,30 @@ export default function ChecklistSheet({
                               <option value="3">3 - Partial</option>
                               <option value="4">4 - Sustained</option>
                             </select>
-                            <Lock className="w-3 h-3 text-slate-500 absolute right-2 top-2 pointer-events-none" />
+                            {isAdminUnlocked ? (
+                              <Unlock className="w-3 h-3 text-emerald-600 absolute right-2 top-2 pointer-events-none" />
+                            ) : (
+                              <Lock className="w-3 h-3 text-slate-500 absolute right-2 top-2 pointer-events-none" />
+                            )}
                           </div>
-                          <div className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1">
-                            <Lock className="w-2.5 h-2.5 text-amber-700" />
-                            <span>Score cannot be changed</span>
+                          <div
+                            className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${
+                              isAdminUnlocked
+                                ? 'text-emerald-800 bg-emerald-50 border-emerald-200 font-bold'
+                                : 'text-amber-800 bg-amber-50 border-amber-200'
+                            }`}
+                          >
+                            {isAdminUnlocked ? (
+                              <>
+                                <Unlock className="w-2.5 h-2.5 text-emerald-700" />
+                                <span>Admin Editable</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-2.5 h-2.5 text-amber-700" />
+                                <span>Score cannot be changed</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -679,6 +819,36 @@ export default function ChecklistSheet({
                   );
                 })}
               </tbody>
+
+              {/* TABLE FOOTER SUMMARY ROW (SHOWN RIGHT AT BOTTOM OF TABLE) */}
+              <tfoot className="border-t-2 border-slate-300 bg-slate-100/90 font-bold text-xs text-slate-800">
+                <tr>
+                  <td className="px-3 py-3.5 text-center font-mono text-slate-500">∑</td>
+                  <td colSpan={4} className="px-3 py-3.5 text-slate-800 uppercase tracking-wider text-[11px]">
+                    Element Aggregate Total ({checklist.questions.length} Items Evaluated)
+                  </td>
+                  <td className="px-3 py-3.5 border-r border-slate-200 font-mono">
+                    <div className="text-slate-800 font-extrabold">{baselineTotal} / {maxPossible}</div>
+                    <div className="text-[10px] text-slate-500 font-semibold">{baselinePct.toFixed(1)}% Compliance</div>
+                  </td>
+                  <td className="px-3 py-3.5 border-r border-slate-200 text-slate-400 text-[10px] italic">
+                    —
+                  </td>
+                  <td colSpan={3} className="px-3 py-3.5 border-r border-slate-200 bg-indigo-50/60 text-indigo-900">
+                    <div className="flex items-center justify-between text-xs">
+                      <span>CAPA Verified: {verifiedCapaCount}</span>
+                      <span className="text-[11px] font-mono font-bold text-emerald-700">+{postCapaTotal - baselineTotal} pts added</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3.5 border-r border-slate-200 bg-indigo-50/60 text-center font-mono text-emerald-700 font-bold">
+                    +{deltaPct.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-3.5 bg-indigo-100/80 font-mono text-indigo-950 font-black">
+                    <div className="text-sm">{postCapaTotal} / {maxPossible}</div>
+                    <div className="text-[10px] text-emerald-700">{postCapaPct.toFixed(1)}% Post-CAPA</div>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -728,13 +898,51 @@ export default function ChecklistSheet({
                   )}
                 </div>
 
-                {/* Score Locked Alert */}
-                <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-amber-900">
-                    <Lock className="w-3.5 h-3.5 text-amber-700" />
-                    <span>Baseline Score: <strong>{q.score} / 4</strong></span>
+                {/* Score Locked / Unlocked Alert */}
+                <div
+                  className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
+                    isAdminUnlocked ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {isAdminUnlocked ? (
+                      <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-800">Baseline Score:</span>
+                      {isAdminUnlocked ? (
+                        <select
+                          value={q.score ?? ''}
+                          onChange={(e) =>
+                            onUpdateQuestion(
+                              checklist.sheet_name,
+                              q.id,
+                              'score',
+                              e.target.value === '' ? null : Number(e.target.value)
+                            )
+                          }
+                          className="bg-white border border-emerald-400 rounded px-2 py-0.5 font-bold text-xs"
+                        >
+                          <option value="0">0 - No System</option>
+                          <option value="1">1 - Inadequate</option>
+                          <option value="2">2 - Documented</option>
+                          <option value="3">3 - Partial</option>
+                          <option value="4">4 - Sustained</option>
+                        </select>
+                      ) : (
+                        <strong className="text-slate-900 font-mono">{q.score} / 4</strong>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-[10px] text-amber-800 font-semibold">(Score Locked)</span>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      isAdminUnlocked ? 'text-emerald-700' : 'text-amber-800'
+                    }`}
+                  >
+                    {isAdminUnlocked ? 'Admin Unlocked' : 'Locked'}
+                  </span>
                 </div>
 
                 {/* Observation & Recommendation */}
@@ -841,6 +1049,214 @@ export default function ChecklistSheet({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* DEDICATED ELEMENT SCORECARD SHOWN BELOW (AFTER UPDATING SCORE MUST BE SHOWN BELOW) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-bold text-slate-900">
+                Updated Score & Element Maturity Summary
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Reflects the live updated baseline evaluation plus verified corrective and preventive actions.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${elementTier.badge}`}>
+              {elementTier.level}: {elementTier.label}
+            </span>
+          </div>
+        </div>
+
+        {/* 4 Score Metric Cards Below Table */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Baseline Audit Score */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Baseline Audit Score</span>
+              <ShieldCheck className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-slate-800 font-mono">
+                {baselinePct.toFixed(1)}%
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                ({baselineTotal} / {maxPossible})
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Average: {(baselinePct / 25).toFixed(2)} / 4.0 scale
+            </p>
+          </div>
+
+          {/* Card 2: CAPA Added Gain */}
+          <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
+            <div className="flex items-center justify-between text-emerald-800 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">CAPA Value Added</span>
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-emerald-700 font-mono">
+                +{deltaPct.toFixed(1)}%
+              </span>
+              <span className="text-xs text-emerald-700 font-bold font-mono">
+                (+{postCapaTotal - baselineTotal} pts)
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-600 mt-1">
+              {verifiedCapaCount} Verified | {openCapaCount} Open Actions
+            </p>
+          </div>
+
+          {/* Card 3: Post-CAPA Effective Score */}
+          <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/60">
+            <div className="flex items-center justify-between text-indigo-800 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Post-CAPA Effective Score</span>
+              <TrendingUp className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold text-indigo-900 font-mono">
+                {postCapaPct.toFixed(1)}%
+              </span>
+              <span className="text-xs text-indigo-700 font-mono font-bold">
+                ({postCapaTotal} / {maxPossible})
+              </span>
+            </div>
+            <p className="text-[11px] text-indigo-600 mt-1">
+              Updated Effective: {(postCapaPct / 25).toFixed(2)} / 4.0 scale
+            </p>
+          </div>
+
+          {/* Card 4: Maturity Classification */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Assigned Maturity</span>
+              <Award className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="text-xl sm:text-2xl font-extrabold text-slate-800">
+              {elementTier.level}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 truncate">
+              {elementTier.label}
+            </p>
+          </div>
+        </div>
+
+        {/* Visual Progress Bar Below */}
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />
+                Baseline Score: {baselinePct.toFixed(1)}%
+              </span>
+              <span className="flex items-center gap-1.5 text-indigo-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
+                Post-CAPA Score: {postCapaPct.toFixed(1)}%
+              </span>
+            </div>
+            <span className="text-emerald-700 font-mono font-bold">
+              +{deltaPct.toFixed(1)}% Improvement
+            </span>
+          </div>
+
+          <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden relative border border-slate-200">
+            {/* Baseline bar */}
+            <div
+              className="h-full bg-slate-400 absolute top-0 left-0 transition-all duration-500"
+              style={{ width: `${Math.min(100, baselinePct)}%` }}
+            />
+            {/* Post-CAPA bar (layered) */}
+            <div
+              className="h-full bg-indigo-600 absolute top-0 left-0 opacity-85 transition-all duration-500"
+              style={{ width: `${Math.min(100, postCapaPct)}%` }}
+            />
+          </div>
+
+          {/* 25%, 50%, 75%, 100% scale ticks */}
+          <div className="flex justify-between text-[10px] text-slate-400 font-mono px-0.5">
+            <span>0%</span>
+            <span>25% (Level I)</span>
+            <span>50% (Level II)</span>
+            <span>75% (Level III)</span>
+            <span>85% (Level IV)</span>
+            <span>100% (Level V)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ADMIN PIN AUTHENTICATION MODAL */}
+      {showPinModal && (
+        <div
+          onClick={() => setShowPinModal(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden"
+          >
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Key className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Admin Authentication</h3>
+                  <p className="text-[11px] text-slate-500">Unlock Baseline Audit Scores for Editing</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPinModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminUnlockSubmit} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Enter Admin Key / PIN</label>
+                <input
+                  type="password"
+                  placeholder="Enter Admin PIN (Default: admin123)"
+                  value={adminPin}
+                  onChange={(e) => {
+                    setAdminPin(e.target.value);
+                    setPinError('');
+                  }}
+                  autoFocus
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+                {pinError && <p className="text-xs text-rose-600 font-medium">{pinError}</p>}
+                <p className="text-[11px] text-slate-400">
+                  Default Admin Key for testing: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">admin123</code>
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPinModal(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition flex items-center gap-1.5"
+                >
+                  <Unlock className="w-3.5 h-3.5" />
+                  <span>Unlock Scores</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
