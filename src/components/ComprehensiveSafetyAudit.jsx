@@ -31,6 +31,21 @@ const AUDITEE_TABLE_WIDTHS = {
   action: 45
 };
 
+const AUDIT_CRITERIA_WIDTHS = {
+  score: 90,
+  indicator: 180,
+  degree: 460,
+  weight: 140
+};
+
+const SCORING_RUBRIC = [
+  { score: 0, indicator: 'Non-Compliant', badge: 'bg-rose-100 text-rose-800 border-rose-300', bar: 'bg-rose-500', pct: '0%', degree: 'No system in place', desc: 'No documented procedure, no records, and no implementation on shop floor.' },
+  { score: 1, indicator: 'Inadequate', badge: 'bg-orange-100 text-orange-800 border-orange-300', bar: 'bg-orange-500', pct: '25%', degree: 'Inadequate System - (SOP is not defined/ Not documented)', desc: 'SOP missing, draft stage, or employees unaware of safety instructions.' },
+  { score: 2, indicator: 'Documented Only', badge: 'bg-amber-100 text-amber-800 border-amber-300', bar: 'bg-amber-500', pct: '50%', degree: 'Defined & Documented (SOP is available)', desc: 'SOP defined and approved, but shopfloor verification shows patchy compliance.' },
+  { score: 3, indicator: 'Partial Implementation', badge: 'bg-blue-100 text-blue-800 border-blue-300', bar: 'bg-blue-500', pct: '75%', degree: 'Partially Implemented (SOP defined, documented & implemented partially)', desc: 'Documented and deployed with minor gaps or occasional deviations noted.' },
+  { score: 4, indicator: 'Full & Sustained', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300', bar: 'bg-emerald-500', pct: '100%', degree: 'Implemented & Sustained (SOP defined, documented, strictly implemented & verified)', desc: 'Complete alignment: documented SOP, active execution, records verified, zero deviation.' }
+];
+
 export default function ComprehensiveSafetyAudit({
   units,
   selectedUnitId,
@@ -57,6 +72,14 @@ export default function ComprehensiveSafetyAudit({
     resetAll: resetAuditeeWidths,
     activeResizer: auditeeActiveResizer
   } = useTableResize(AUDITEE_TABLE_WIDTHS, 'csa_auditee_widths');
+
+  const {
+    widths: rubricWidths,
+    handleMouseDown: handleRubricResize,
+    handleDoubleClick: handleRubricDblClick,
+    resetAll: resetRubricWidths,
+    activeResizer: rubricActiveResizer
+  } = useTableResize(AUDIT_CRITERIA_WIDTHS, 'csa_audit_rubric_widths');
 
   const updateField = (field, value) => {
     onUpdateUnitCoverPage(currentUnit.id, {
@@ -574,6 +597,120 @@ export default function ComprehensiveSafetyAudit({
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Scoring Criteria & Rating Indication (Degree of Compliance) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                Scoring Criteria & Rating Indication
+                <span className="text-[11px] font-normal text-slate-500">(0 to 4 Degree of Compliance Rubric)</span>
+              </h3>
+              <p className="text-xs text-slate-500">Comprehensive safety audit evaluation criteria and compliance benchmarks</p>
+            </div>
+          </div>
+          <button
+            onClick={resetRubricWidths}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition no-print"
+            title="Reset columns to default widths"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset Widths
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse table-fixed">
+            <thead className="bg-slate-100/75 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th
+                  style={{ width: `${rubricWidths.score}px` }}
+                  className="px-4 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  Score
+                  <ResizeHandle
+                    columnId="score"
+                    onMouseDown={handleRubricResize}
+                    onDoubleClick={handleRubricDblClick}
+                    isActive={rubricActiveResizer === 'score'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${rubricWidths.indicator}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Rating Indicator
+                  <ResizeHandle
+                    columnId="indicator"
+                    onMouseDown={handleRubricResize}
+                    onDoubleClick={handleRubricDblClick}
+                    isActive={rubricActiveResizer === 'indicator'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${rubricWidths.degree}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  Degree of Compliance & Operational Definition
+                  <ResizeHandle
+                    columnId="degree"
+                    onMouseDown={handleRubricResize}
+                    onDoubleClick={handleRubricDblClick}
+                    isActive={rubricActiveResizer === 'degree'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${rubricWidths.weight}px` }}
+                  className="px-4 py-3 relative select-none"
+                >
+                  Compliance Weight
+                  <ResizeHandle
+                    columnId="weight"
+                    onMouseDown={handleRubricResize}
+                    onDoubleClick={handleRubricDblClick}
+                    isActive={rubricActiveResizer === 'weight'}
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-sm">
+              {SCORING_RUBRIC.map((item) => (
+                <tr key={item.score} className="hover:bg-slate-50/75 transition-colors">
+                  <td className="px-4 py-3.5 border-r border-slate-200 text-center font-bold">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-mono text-sm shadow-sm">
+                      {item.score}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 border-r border-slate-200">
+                    <span className={`inline-flex px-3 py-1 rounded-md text-xs font-semibold border ${item.badge}`}>
+                      {item.indicator}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 border-r border-slate-200">
+                    <div className="font-semibold text-slate-800">{item.degree}</div>
+                    <div className="text-xs text-slate-500 mt-1 leading-relaxed">{item.desc}</div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                        <div
+                          className={`h-full ${item.bar} transition-all duration-300`}
+                          style={{ width: item.pct }}
+                        />
+                      </div>
+                      <span className="font-mono text-xs font-bold text-slate-700 min-w-[36px] text-right">{item.pct}</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

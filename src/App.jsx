@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_real_data_v3';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v4';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -40,7 +40,8 @@ export default function App() {
           parsed &&
           parsed.units &&
           parsed.units.length === 6 &&
-          parsed.units[0].name.includes('BPL')
+          parsed.units[0].name.includes('BPL') &&
+          !parsed.units.find(u => u.id === 'unit_3')
         ) {
           return parsed;
         }
@@ -52,7 +53,7 @@ export default function App() {
   });
 
   const [selectedUnitId, setSelectedUnitId] = useState('unit_1');
-  const [activeSheet, setActiveSheet] = useState('Audit');
+  const [activeSheet, setActiveSheet] = useState('Summary');
   const [saveNotification, setSaveNotification] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);

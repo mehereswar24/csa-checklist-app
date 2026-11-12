@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -25,7 +25,13 @@ import {
   ShieldCheck,
   ChevronRight,
   ExternalLink,
-  Target
+  Target,
+  Factory,
+  Pill,
+  Activity,
+  RotateCcw,
+  Sliders,
+  FileCheck2
 } from 'lucide-react';
 import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
 
@@ -42,32 +48,56 @@ ChartJS.register(
   Legend
 );
 
+const MATURITY_LEVELS = [
+  { level: 'Level - I', criteria: 'Initial', range: '1% - 25%', min: 0, max: 0.25, badge: 'bg-rose-100 text-rose-800 border-rose-300' },
+  { level: 'Level - II', criteria: 'Managed', range: '26% - 50%', min: 0.26, max: 0.50, badge: 'bg-orange-100 text-orange-800 border-orange-300' },
+  { level: 'Level - III', criteria: 'Defined', range: '51% - 75%', min: 0.51, max: 0.75, badge: 'bg-amber-100 text-amber-800 border-amber-300' },
+  { level: 'Level - IV', criteria: 'Qualitatively Managed', range: '76% - 85%', min: 0.76, max: 0.85, badge: 'bg-blue-100 text-blue-800 border-blue-300' },
+  { level: 'Level - V', criteria: 'Continuous Improvement', range: '86% - 100%', min: 0.86, max: 1.0, badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' }
+];
+
 const UNIT_BENCHMARK_WIDTHS = {
-  unitCode: 120,
-  unitName: 240,
-  location: 180,
-  baseline: 130,
-  postCapa: 130,
-  delta: 110,
-  maturity: 150,
-  action: 110
+  unitCode: 110,
+  unitName: 220,
+  division: 100,
+  location: 170,
+  baseline: 120,
+  postCapa: 120,
+  delta: 100,
+  maturity: 140,
+  action: 95
+};
+
+const MATRIX_TABLE_WIDTHS = {
+  sno: 45,
+  elem: 240,
+  orgAvg: 100,
+  apiAvg: 100,
+  fdAvg: 100,
+  unit1: 95,
+  unit2: 95,
+  unit4: 95,
+  unit5: 95,
+  unit6: 95,
+  unit7: 95,
+  action: 85
 };
 
 const ELEMENT_TABLE_WIDTHS = {
-  sl: 60,
-  elem: 340,
-  baseline: 130,
-  postCapa: 130,
-  delta: 110,
-  bench: 180,
-  action: 90
+  sl: 50,
+  elem: 300,
+  baseline: 120,
+  postCapa: 120,
+  delta: 100,
+  capaStats: 140,
+  action: 85
 };
 
 export default function SummaryDashboard({
-  units,
+  units = [],
   selectedUnitId,
   onSelectUnit,
-  unitMetrics,
+  unitMetrics = {},
   onSelectSheet,
   theme
 }) {
@@ -80,7 +110,15 @@ export default function SummaryDashboard({
     handleDoubleClick: handleUnitDblClick,
     resetAll: resetUnitWidths,
     activeResizer: unitActiveResizer
-  } = useTableResize(UNIT_BENCHMARK_WIDTHS, 'csa_unit_summary_widths');
+  } = useTableResize(UNIT_BENCHMARK_WIDTHS, 'csa_unit_summary_widths_v2');
+
+  const {
+    widths: matrixWidths,
+    handleMouseDown: handleMatrixResize,
+    handleDoubleClick: handleMatrixDblClick,
+    resetAll: resetMatrixWidths,
+    activeResizer: matrixActiveResizer
+  } = useTableResize(MATRIX_TABLE_WIDTHS, 'csa_matrix_19_widths');
 
   const {
     widths: elemWidths,
@@ -88,9 +126,147 @@ export default function SummaryDashboard({
     handleDoubleClick: handleElemDblClick,
     resetAll: resetElemWidths,
     activeResizer: elemActiveResizer
-  } = useTableResize(ELEMENT_TABLE_WIDTHS, 'csa_summary_elem_widths');
+  } = useTableResize(ELEMENT_TABLE_WIDTHS, 'csa_summary_elem_widths_v2');
 
-  const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0];
+  const getMaturityTier = (pct) => {
+    const ratio = pct / 100;
+    return (
+      MATURITY_LEVELS.find((ml) => ratio >= ml.min && ratio <= ml.max) ||
+      MATURITY_LEVELS[MATURITY_LEVELS.length - 1]
+    );
+  };
+
+  const getScoreTheme = (pct) => {
+    if (pct < 50) return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', bar: '#f43f5e' };
+    if (pct < 75) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: '#f59e0b' };
+    return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: '#10b981' };
+  };
+
+  // 1. Division groupings
+  const apiUnits = useMemo(
+    () => units.filter((u) => u.division === 'API' || ['unit_1', 'unit_2', 'unit_4', 'unit_5'].includes(u.id)),
+    [units]
+  );
+
+  const fdUnits = useMemo(
+    () => units.filter((u) => u.division === 'FD' || ['unit_6', 'unit_7'].includes(u.id)),
+    [units]
+  );
+
+  // 2. Org Maturity Rollup
+  const orgMetrics = useMemo(() => {
+    if (units.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    let sumPost = 0;
+    let sumBase = 0;
+    units.forEach((u) => {
+      const m = unitMetrics[u.id];
+      if (m) {
+        sumPost += m.postCapaScorePct || 0;
+        sumBase += m.baselineScorePct || 0;
+      }
+    });
+    const avgPost = sumPost / units.length;
+    const avgBase = sumBase / units.length;
+    return {
+      postCapaPct: avgPost,
+      baselinePct: avgBase,
+      avgScore: (avgPost / 100) * 4,
+      deltaPct: avgPost - avgBase,
+      maturity: getMaturityTier(avgPost)
+    };
+  }, [units, unitMetrics]);
+
+  // 3. API Maturity Rollup (Units 1, 2, 4, 5)
+  const apiMetrics = useMemo(() => {
+    if (apiUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    let sumPost = 0;
+    let sumBase = 0;
+    apiUnits.forEach((u) => {
+      const m = unitMetrics[u.id];
+      if (m) {
+        sumPost += m.postCapaScorePct || 0;
+        sumBase += m.baselineScorePct || 0;
+      }
+    });
+    const avgPost = sumPost / apiUnits.length;
+    const avgBase = sumBase / apiUnits.length;
+    return {
+      postCapaPct: avgPost,
+      baselinePct: avgBase,
+      avgScore: (avgPost / 100) * 4,
+      deltaPct: avgPost - avgBase,
+      maturity: getMaturityTier(avgPost)
+    };
+  }, [apiUnits, unitMetrics]);
+
+  // 4. FD Maturity Rollup (Unit 6 GGP, Unit 7 GLS)
+  const fdMetrics = useMemo(() => {
+    if (fdUnits.length === 0) return { postCapaPct: 0, baselinePct: 0, avgScore: 0, deltaPct: 0, maturity: MATURITY_LEVELS[0] };
+    let sumPost = 0;
+    let sumBase = 0;
+    fdUnits.forEach((u) => {
+      const m = unitMetrics[u.id];
+      if (m) {
+        sumPost += m.postCapaScorePct || 0;
+        sumBase += m.baselineScorePct || 0;
+      }
+    });
+    const avgPost = sumPost / fdUnits.length;
+    const avgBase = sumBase / fdUnits.length;
+    return {
+      postCapaPct: avgPost,
+      baselinePct: avgBase,
+      avgScore: (avgPost / 100) * 4,
+      deltaPct: avgPost - avgBase,
+      maturity: getMaturityTier(avgPost)
+    };
+  }, [fdUnits, unitMetrics]);
+
+  // 5. All Units 19 Elements Benchmark Matrix
+  const matrix19Elements = useMemo(() => {
+    const firstUnit = units[0];
+    if (!firstUnit || !firstUnit.checklists) return [];
+
+    return firstUnit.checklists.map((cl, idx) => {
+      const elemName = cl.sheet_name;
+
+      // Extract scores for each unit
+      const unitScoresMap = {};
+      let orgSum = 0;
+      let apiSum = 0;
+      let fdSum = 0;
+      let apiCount = 0;
+      let fdCount = 0;
+
+      units.forEach((u) => {
+        const uElem = unitMetrics[u.id]?.elements?.[idx];
+        const pPct = uElem ? uElem.postCapaPct : 0;
+        unitScoresMap[u.id] = pPct;
+        orgSum += pPct;
+
+        if (['unit_1', 'unit_2', 'unit_4', 'unit_5'].includes(u.id) || u.division === 'API') {
+          apiSum += pPct;
+          apiCount++;
+        } else if (['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD') {
+          fdSum += pPct;
+          fdCount++;
+        }
+      });
+
+      return {
+        s_no: idx + 1,
+        element_name: elemName,
+        sheet_ref: cl.sheet_name,
+        orgAvgPct: units.length > 0 ? orgSum / units.length : 0,
+        apiAvgPct: apiCount > 0 ? apiSum / apiCount : 0,
+        fdAvgPct: fdCount > 0 ? fdSum / fdCount : 0,
+        unitScores: unitScoresMap
+      };
+    });
+  }, [units, unitMetrics]);
+
+  // Selected Unit Data
+  const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0] || {};
   const currentMetric = unitMetrics[currentUnit.id] || {
     baselineScorePct: 0,
     baselineAvgScore: 0,
@@ -101,20 +277,10 @@ export default function SummaryDashboard({
     elements: []
   };
 
-  const getScoreTheme = (pct) => {
-    if (pct < 50) return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', bar: '#f43f5e' };
-    if (pct < 75) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: '#f59e0b' };
-    return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: '#10b981' };
-  };
-
-  // Chart data for selected unit's 19 elements
-  const elemLabels = currentMetric.elements.map((e) =>
-    e.element_name.length > 20 ? e.element_name.substring(0, 18) + '...' : e.element_name
-  );
+  // Charts data for selected unit
   const baselineScores = currentMetric.elements.map((e) => Math.round(e.baselinePct * 10) / 10);
   const postCapaScores = currentMetric.elements.map((e) => Math.round(e.postCapaPct * 10) / 10);
 
-  // Grouped Bar Chart: Baseline vs Post-CAPA
   const barChartData = {
     labels: currentMetric.elements.map((e, idx) => `${idx + 1}. ${e.element_name.substring(0, 14)}..`),
     datasets: [
@@ -141,10 +307,7 @@ export default function SummaryDashboard({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-        labels: { font: { size: 11, weight: '600' } }
-      },
+      legend: { position: 'top', labels: { font: { size: 11, weight: '600' } } },
       tooltip: {
         callbacks: {
           label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}% (${(ctx.raw / 25).toFixed(2)}/4.0)`
@@ -165,7 +328,6 @@ export default function SummaryDashboard({
     }
   };
 
-  // Radar Chart: Multi-dimensional Profile
   const radarChartData = {
     labels: currentMetric.elements.map((e) =>
       e.element_name.length > 15 ? e.element_name.substring(0, 13) + '..' : e.element_name
@@ -199,69 +361,552 @@ export default function SummaryDashboard({
       }
     },
     plugins: {
-      legend: {
-        position: 'top',
-        labels: { font: { size: 11, weight: '600' } }
-      }
+      legend: { position: 'top', labels: { font: { size: 11, weight: '600' } } }
     }
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Top Banner & Active Unit Switcher */}
+    <div className="space-y-8 pb-16">
+      {/* EXECUTIVE HEADER & TOP ACTIONS */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
               <Building2 className="w-3.5 h-3.5" />
-              Multi-Unit Organizational Benchmark
+              Org EHS Maturity â€¢ Executive Landing Page
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Executive Summary & Unit-Wise Benchmark
+              Enterprise Safety & Operational Maturity
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Multi-unit cross-comparison of Baseline vs. Post-CAPA scores and comprehensive element breakdown.
+              Multi-unit EHS benchmark across API Division (Units 1, 2, 4, 5) and Finished Dosage Division (Unit 6 GGP, Unit 7 GLS)
             </p>
           </div>
 
-          {/* Unit Switcher */}
-          <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-            <Building2 className="w-5 h-5 text-indigo-600 shrink-0" />
-            <div className="flex flex-col">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Active Focus Unit
-              </label>
-              <select
-                value={selectedUnitId}
-                onChange={(e) => onSelectUnit(e.target.value)}
-                className="bg-transparent text-sm font-semibold text-slate-800 outline-none cursor-pointer pr-4"
-              >
-                {units.map((u) => {
-                  const m = unitMetrics[u.id];
-                  return (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
-                    </option>
-                  );
-                })}
-              </select>
+          <div className="flex items-center gap-3">
+            {/* Quick navigation to Comprehensive Safety Audit */}
+            <button
+              onClick={() => onSelectSheet('Audit')}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-sm transition hover:opacity-95"
+              style={{ backgroundColor: theme.primary }}
+            >
+              <FileCheck2 className="w-4 h-4" />
+              Comprehensive Safety Audit
+            </button>
+
+            {/* Active Focus Unit Switcher */}
+            <div className="flex items-center gap-2.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+              <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Focus Unit
+                </span>
+                <select
+                  value={selectedUnitId}
+                  onChange={(e) => onSelectUnit(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-2"
+                >
+                  {units.map((u) => {
+                    const m = unitMetrics[u.id];
+                    return (
+                      <option key={u.id} value={u.id}>
+                        {u.code} - {u.name.split('(')[0].trim()} ({m ? `${m.postCapaScorePct.toFixed(1)}%` : ''})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* SECTION 1: UNIT-WISE BENCHMARK TABLE (ALL 6 UNITS) */}
+      {/* ========================================================================= */}
+      {/* 1. TOP SECTION: 3-TIER MATURITY CARDS (ORG -> API -> FD)                  */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* CARD 1: ORG MATURITY (OVERALL) */}
+        <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden border border-indigo-800/60 flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+          
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+                Tier 1 â€¢ Enterprise Rollup
+              </span>
+              <span className="text-[11px] font-mono text-indigo-300/80">6 Operating Units</span>
+            </div>
+
+            <h3 className="text-xl font-extrabold text-white tracking-tight">
+              Organization EHS Maturity
+            </h3>
+            <p className="text-xs text-indigo-200/70 mt-1">
+              Overall safety maturity aggregated across all API & FD manufacturing facilities.
+            </p>
+
+            <div className="mt-5 flex items-baseline gap-3">
+              <span className="text-4xl font-black font-mono tracking-tight text-white">
+                {orgMetrics.postCapaPct.toFixed(1)}%
+              </span>
+              <span className="text-sm font-mono text-indigo-300">
+                ({orgMetrics.avgScore.toFixed(2)} / 4.0)
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {orgMetrics.maturity.level}: {orgMetrics.maturity.criteria}
+              </span>
+              <span className="text-xs text-emerald-400 font-semibold font-mono">
+                +{orgMetrics.deltaPct.toFixed(1)}% CAPA Gain
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-indigo-800/50">
+            <div className="flex justify-between text-xs text-indigo-200/80 mb-1.5 font-medium">
+              <span>Baseline: {orgMetrics.baselinePct.toFixed(1)}%</span>
+              <span>Target: 86.0% (Level-V)</span>
+            </div>
+            <div className="w-full bg-indigo-950/80 rounded-full h-2.5 overflow-hidden border border-indigo-700/50">
+              <div
+                className="bg-gradient-to-r from-indigo-400 to-emerald-400 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, orgMetrics.postCapaPct)}%` }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-indigo-300/70">
+              <span>4 API Units â€¢ 2 FD Units</span>
+              <span>19 Elements Assessed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: API MATURITY (UNITS 1, 2, 4, 5) */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-blue-300 transition">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <Factory className="w-3.5 h-3.5 text-blue-600" />
+                Tier 2 â€¢ API Business Unit
+              </span>
+              <span className="text-[11px] font-mono text-slate-400">4 Plants (1, 2, 4, 5)</span>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+              API Cluster Maturity
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Active Pharmaceutical Ingredients (Bonthapalli, Jeedimetla, Visakhapatnam & Parawada).
+            </p>
+
+            <div className="mt-5 flex items-baseline gap-3">
+              <span className="text-4xl font-black font-mono tracking-tight text-blue-700">
+                {apiMetrics.postCapaPct.toFixed(1)}%
+              </span>
+              <span className="text-sm font-mono text-slate-400">
+                ({apiMetrics.avgScore.toFixed(2)} / 4.0)
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                {apiMetrics.maturity.level}: {apiMetrics.maturity.criteria}
+              </span>
+              <span className="text-xs text-emerald-600 font-semibold font-mono">
+                +{apiMetrics.deltaPct.toFixed(1)}% CAPA Gain
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              API Operating Units
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {apiUnits.map((u) => {
+                const m = unitMetrics[u.id];
+                const isSelected = u.id === selectedUnitId;
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => onSelectUnit(u.id)}
+                    className={`p-2 rounded-lg text-left border transition text-xs flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-blue-50/80 border-blue-400 shadow-xs'
+                        : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-bold text-slate-800">{u.code}</span>
+                      <span className="font-mono font-bold text-blue-700">
+                        {m ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 truncate mt-0.5">
+                      {u.name.split('(')[1]?.replace(')', '') || u.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 3: FD MATURITY (UNITS 6 GGP, 7 GLS) */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between hover:border-purple-300 transition">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                <Pill className="w-3.5 h-3.5 text-purple-600" />
+                Tier 3 â€¢ Finished Dosage (FD)
+              </span>
+              <span className="text-[11px] font-mono text-slate-400">2 Plants (6 GGP, 7 GLS)</span>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+              FD Cluster Maturity
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Finished Dosage Formulations (Unit-VI GGP Gagillapur & Unit-VII GLS Growth Lab Sterile).
+            </p>
+
+            <div className="mt-5 flex items-baseline gap-3">
+              <span className="text-4xl font-black font-mono tracking-tight text-purple-700">
+                {fdMetrics.postCapaPct.toFixed(1)}%
+              </span>
+              <span className="text-sm font-mono text-slate-400">
+                ({fdMetrics.avgScore.toFixed(2)} / 4.0)
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                {fdMetrics.maturity.level}: {fdMetrics.maturity.criteria}
+              </span>
+              <span className="text-xs text-emerald-600 font-semibold font-mono">
+                +{fdMetrics.deltaPct.toFixed(1)}% CAPA Gain
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              Finished Dosage (FD) Units
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {fdUnits.map((u) => {
+                const m = unitMetrics[u.id];
+                const isSelected = u.id === selectedUnitId;
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => onSelectUnit(u.id)}
+                    className={`p-2 rounded-lg text-left border transition text-xs flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-purple-50/80 border-purple-400 shadow-xs'
+                        : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-bold text-slate-800">{u.code}</span>
+                      <span className="font-mono font-bold text-purple-700">
+                        {m ? `${m.postCapaScorePct.toFixed(1)}%` : '-'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 truncate mt-0.5">
+                      {u.name.split('(')[1]?.replace(')', '') || u.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. ALL UNITS 19 ELEMENTS COMPREHENSIVE BENCHMARK MATRIX                   */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/60">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  All Units 19 Elements Benchmark Matrix
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Cross-comparison of EHS compliance across Organization Average, API Cluster, FD Cluster, and all 6 individual operating units.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={resetMatrixWidths}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition shadow-2xs"
+              title="Reset column widths"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset Widths
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse table-fixed text-xs min-w-[1100px]">
+            <thead>
+              <tr className="bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                <th
+                  style={{ width: `${matrixWidths.sno}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  #
+                  <ResizeHandle
+                    columnId="sno"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'sno'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.elem}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                >
+                  EHS Element (19 Elements)
+                  <ResizeHandle
+                    columnId="elem"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'elem'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.orgAvg}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center bg-indigo-50/70 text-indigo-900 relative select-none"
+                >
+                  Org Avg %
+                  <ResizeHandle
+                    columnId="orgAvg"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'orgAvg'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.apiAvg}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center bg-blue-50/70 text-blue-900 relative select-none"
+                >
+                  API Avg %
+                  <ResizeHandle
+                    columnId="apiAvg"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'apiAvg'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.fdAvg}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center bg-purple-50/70 text-purple-900 relative select-none"
+                >
+                  FD Avg %
+                  <ResizeHandle
+                    columnId="fdAvg"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'fdAvg'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit1}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-1 (BPL)
+                  <ResizeHandle
+                    columnId="unit1"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit1'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit2}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-2 (JDM)
+                  <ResizeHandle
+                    columnId="unit2"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit2'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit4}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-4 (VSKP)
+                  <ResizeHandle
+                    columnId="unit4"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit4'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit5}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-5 (PAR)
+                  <ResizeHandle
+                    columnId="unit5"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit5'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit6}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-6 (GGP)
+                  <ResizeHandle
+                    columnId="unit6"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit6'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.unit7}px` }}
+                  className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
+                >
+                  U-7 (GLS)
+                  <ResizeHandle
+                    columnId="unit7"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'unit7'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${matrixWidths.action}px` }}
+                  className="px-3 py-3 text-center relative select-none"
+                >
+                  Checklist
+                  <ResizeHandle
+                    columnId="action"
+                    onMouseDown={handleMatrixResize}
+                    onDoubleClick={handleMatrixDblClick}
+                    isActive={matrixActiveResizer === 'action'}
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-xs">
+              {matrix19Elements.map((row) => {
+                const orgTheme = getScoreTheme(row.orgAvgPct);
+                const apiTheme = getScoreTheme(row.apiAvgPct);
+                const fdTheme = getScoreTheme(row.fdAvgPct);
+
+                return (
+                  <tr key={row.s_no} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-3 py-3 border-r border-slate-200 text-center font-bold text-slate-500">
+                      {row.s_no}
+                    </td>
+                    <td className="px-4 py-3 border-r border-slate-200">
+                      <div className="font-semibold text-slate-800 line-clamp-1" title={row.element_name}>
+                        {row.element_name}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 border-r border-slate-200 text-center bg-indigo-50/40">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${orgTheme.bg} ${orgTheme.text} ${orgTheme.border}`}>
+                        {row.orgAvgPct.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 border-r border-slate-200 text-center bg-blue-50/40">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${apiTheme.bg} ${apiTheme.text} ${apiTheme.border}`}>
+                        {row.apiAvgPct.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 border-r border-slate-200 text-center bg-purple-50/40">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold border ${fdTheme.bg} ${fdTheme.text} ${fdTheme.border}`}>
+                        {row.fdAvgPct.toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 1 */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_1'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 2 */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_2'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 4 */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_4'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 5 */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_5'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 6 GGP */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_6'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Unit 7 GLS */}
+                    <td className="px-3 py-3 border-r border-slate-200 text-center">
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(row.unitScores['unit_7'] || 0).toFixed(1)}%
+                      </span>
+                    </td>
+                    {/* Action */}
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        onClick={() => onSelectSheet(row.sheet_ref)}
+                        className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition inline-flex items-center justify-center"
+                        title="View Checklist"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. UNIT-WISE SUMMARY BENCHMARK TABLE (ALL 6 OPERATING UNITS)              */}
+      {/* ========================================================================= */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-bold text-slate-900">
-                Unit-Wise Summary Benchmark (All 6 Operating Units)
+                Unit-Wise Operational Benchmark & Division Summary
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Click any unit row or "Focus Unit" to inspect its 19 elements breakdown and CAPA metrics.
+              Click any unit row or "Focus" button to inspect its comprehensive 19 elements profile and CAPA breakdown below.
             </p>
           </div>
           <button
@@ -273,7 +918,7 @@ export default function SummaryDashboard({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[850px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
                 <th
@@ -298,6 +943,18 @@ export default function SummaryDashboard({
                     onMouseDown={handleUnitResize}
                     onDoubleClick={handleUnitDblClick}
                     isActive={unitActiveResizer === 'unitName'}
+                  />
+                </th>
+                <th
+                  style={{ width: `${unitWidths.division}px` }}
+                  className="px-4 py-3 border-r border-slate-200 relative select-none text-center"
+                >
+                  Division
+                  <ResizeHandle
+                    columnId="division"
+                    onMouseDown={handleUnitResize}
+                    onDoubleClick={handleUnitDblClick}
+                    isActive={unitActiveResizer === 'division'}
                   />
                 </th>
                 <th
@@ -384,6 +1041,7 @@ export default function SummaryDashboard({
                   maturityLevel: { level: 'Level - I' }
                 };
                 const themeCol = getScoreTheme(m.postCapaScorePct);
+                const isFD = ['unit_6', 'unit_7'].includes(u.id) || u.division === 'FD';
 
                 return (
                   <tr
@@ -405,8 +1063,19 @@ export default function SummaryDashboard({
                       <div className="font-semibold text-slate-900">{u.name}</div>
                       <div className="text-xs text-slate-500">{u.cover_page?.assessment_stage || 'Annual Assessment'}</div>
                     </td>
+                    <td className="px-4 py-3.5 border-r border-slate-200 text-center">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold border ${
+                          isFD
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
+                      >
+                        {isFD ? 'FD' : 'API'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3.5 border-r border-slate-200 text-slate-600 text-xs">
-                      {u.cover_page?.location || 'Plant Site'}
+                      {u.cover_page?.location || u.location || 'Plant Site'}
                     </td>
                     <td className="px-4 py-3.5 border-r border-slate-200">
                       <div className="text-xs font-mono font-bold text-slate-600">
@@ -457,316 +1126,220 @@ export default function SummaryDashboard({
         </div>
       </div>
 
-      {/* SECTION 2: FOCUSED UNIT DEEP DIVE KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Card 1: Baseline Audit Score */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Baseline Audit Score</span>
-            <ShieldCheck className="w-4 h-4 text-slate-400" />
+      {/* ========================================================================= */}
+      {/* 4. FOCUSED UNIT DEEP DIVE KPI CARDS & CHARTS                              */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {currentUnit.code}
+              </span>
+              <span className="text-xs text-slate-500">Focused Unit Analysis</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">{currentUnit.name}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {currentUnit.cover_page?.location || 'Plant Site'} â€¢ {currentUnit.cover_page?.hazard_classification || 'Class A Chemical'}
+            </p>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-800 font-mono">
-              {currentMetric.baselineScorePct.toFixed(1)}%
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              ({currentMetric.baselineAvgScore.toFixed(2)} / 4.0)
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-2">
-            Original audit baseline evaluation (scores locked as historical record).
-          </p>
-        </div>
 
-        {/* Card 2: Post-CAPA Effective Score */}
-        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-5 bg-gradient-to-br from-indigo-50/40 to-white">
-          <div className="flex items-center justify-between text-indigo-700 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Post-CAPA Effective Score</span>
-            <TrendingUp className="w-4 h-4 text-indigo-600" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-indigo-700 font-mono">
-              {currentMetric.postCapaScorePct.toFixed(1)}%
-            </span>
-            <span className="text-xs text-indigo-500 font-mono">
-              ({currentMetric.postCapaAvgScore.toFixed(2)} / 4.0)
-            </span>
-          </div>
-          <p className="text-xs text-indigo-500 mt-2">
-            Updated overall score incorporating completed & verified CAPA actions.
-          </p>
-        </div>
-
-        {/* Card 3: CAPA Boost / Delta */}
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5 bg-gradient-to-br from-emerald-50/40 to-white">
-          <div className="flex items-center justify-between text-emerald-700 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">CAPA Value Added</span>
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-emerald-700 font-mono">
-              +{currentMetric.deltaPct.toFixed(1)}%
-            </span>
-            <span className="text-xs text-emerald-600 font-bold">
-              Compliance Gain
-            </span>
-          </div>
-          <p className="text-xs text-emerald-600 mt-2">
-            Net compliance improvement realized post corrective actions.
-          </p>
-        </div>
-
-        {/* Card 4: Maturity Level */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Assigned Maturity Tier</span>
-            <Award className="w-4 h-4 text-amber-500" />
-          </div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold text-slate-800">
-              {currentMetric.maturityLevel.level}
-            </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 font-mono font-bold text-slate-600">
-              {currentMetric.maturityLevel.range}
-            </span>
+            <button
+              onClick={() => onSelectSheet('Audit')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
+            >
+              <FileCheck2 className="w-3.5 h-3.5" />
+              Open Unit Audit Checklist
+            </button>
           </div>
-          <p className="text-xs text-slate-500 mt-2 truncate" title={currentMetric.maturityLevel.criteria}>
-            {currentMetric.maturityLevel.criteria}
-          </p>
         </div>
-      </div>
 
-      {/* SECTION 3: VISUAL COMPARISON CHARTS (SELECTED UNIT) */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+        {/* Focused KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Baseline Audit Score
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold font-mono text-slate-800">
+                {currentMetric.baselineScorePct.toFixed(1)}%
+              </span>
+              <span className="text-xs font-mono text-slate-400">
+                ({currentMetric.baselineAvgScore.toFixed(2)}/4.0)
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-500 block mb-1">
+              Post-CAPA Effective Score
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold font-mono text-indigo-700">
+                {currentMetric.postCapaScorePct.toFixed(1)}%
+              </span>
+              <span className="text-xs font-mono text-indigo-500">
+                ({currentMetric.postCapaAvgScore.toFixed(2)}/4.0)
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
+              CAPA Improvement Delta
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold font-mono text-emerald-700">
+                +{currentMetric.deltaPct.toFixed(1)}%
+              </span>
+              <span className="text-xs text-emerald-600 font-medium">Post-CAPA Gain</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-50/70 rounded-xl p-4 border border-slate-200">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Unit Maturity Tier
+            </span>
+            <div className="mt-1">
+              <span className="inline-flex px-2.5 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                {currentMetric.maturityLevel.level}: {currentMetric.maturityLevel.criteria}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dual Visual Charts */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-indigo-600" />
-              19 Elements Compliance Profile: {currentUnit.name}
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Comparing Baseline Audit scores against Post-CAPA verification across all 19 functional elements.
-            </p>
+              19 Elements Compliance Profile ({currentUnit.code})
+            </h3>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+              <button
+                onClick={() => setChartView('both')}
+                className={`px-2.5 py-1 rounded ${chartView === 'both' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+              >
+                Both
+              </button>
+              <button
+                onClick={() => setChartView('bar')}
+                className={`px-2.5 py-1 rounded ${chartView === 'bar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+              >
+                Bar Chart
+              </button>
+              <button
+                onClick={() => setChartView('radar')}
+                className={`px-2.5 py-1 rounded ${chartView === 'radar' ? 'bg-white font-bold shadow-xs text-indigo-600' : 'text-slate-600'}`}
+              >
+                Radar Profile
+              </button>
+            </div>
           </div>
 
-          <div className="inline-flex p-1 bg-slate-100 rounded-lg text-xs font-medium self-start sm:self-auto">
-            <button
-              onClick={() => setChartView('both')}
-              className={`px-3 py-1.5 rounded-md transition ${
-                chartView === 'both' ? 'bg-white shadow-xs text-slate-900 font-semibold' : 'text-slate-600'
-              }`}
-            >
-              Side-by-Side
-            </button>
-            <button
-              onClick={() => setChartView('bar')}
-              className={`px-3 py-1.5 rounded-md transition ${
-                chartView === 'bar' ? 'bg-white shadow-xs text-slate-900 font-semibold' : 'text-slate-600'
-              }`}
-            >
-              Grouped Column
-            </button>
-            <button
-              onClick={() => setChartView('radar')}
-              className={`px-3 py-1.5 rounded-md transition ${
-                chartView === 'radar' ? 'bg-white shadow-xs text-slate-900 font-semibold' : 'text-slate-600'
-              }`}
-            >
-              Maturity Radar
-            </button>
+          <div className={`grid gap-6 ${chartView === 'both' ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+            {(chartView === 'both' || chartView === 'bar') && (
+              <div className={`${chartView === 'both' ? 'lg:col-span-2' : ''} bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80`}>
+                <Bar data={barChartData} options={barChartOptions} />
+              </div>
+            )}
+            {(chartView === 'both' || chartView === 'radar') && (
+              <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80 flex items-center justify-center">
+                <Radar data={radarChartData} options={radarChartOptions} />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {(chartView === 'bar' || chartView === 'both') && (
-            <div className={`${chartView === 'both' ? 'lg:col-span-7' : 'lg:col-span-12'} h-[360px]`}>
-              <Bar data={barChartData} options={barChartOptions} />
-            </div>
-          )}
-
-          {(chartView === 'radar' || chartView === 'both') && (
-            <div className={`${chartView === 'both' ? 'lg:col-span-5' : 'lg:col-span-12'} h-[360px]`}>
-              <Radar data={radarChartData} options={radarChartOptions} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* SECTION 4: 19 ELEMENTS DETAILED BREAKDOWN TABLE (SELECTED UNIT) */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-bold text-slate-900">
-                Element-Wise Score Breakdown: {currentUnit.name}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Detailed breakdown of all 19 safety management system elements with individual CAPA gains.
-            </p>
+        {/* Focused Unit Elements Breakdown Table */}
+        <div className="pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              {currentUnit.code} Element-by-Element Breakdown (19 Elements)
+            </h3>
+            <button
+              onClick={resetElemWidths}
+              className="text-xs text-slate-500 hover:text-indigo-600 font-medium"
+            >
+              Reset Widths
+            </button>
           </div>
-          <button
-            onClick={resetElemWidths}
-            className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition"
-          >
-            Reset Column Widths
-          </button>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
-                <th
-                  style={{ width: `${elemWidths.sl}px` }}
-                  className="px-4 py-3 border-r border-slate-200 text-center relative select-none"
-                >
-                  Sl No
-                  <ResizeHandle
-                    columnId="sl"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'sl'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.elem}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
-                >
-                  Element Name
-                  <ResizeHandle
-                    columnId="elem"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'elem'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.baseline}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
-                >
-                  Baseline Score
-                  <ResizeHandle
-                    columnId="baseline"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'baseline'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.postCapa}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
-                >
-                  Post-CAPA Score
-                  <ResizeHandle
-                    columnId="postCapa"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'postCapa'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.delta}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
-                >
-                  Delta (+%)
-                  <ResizeHandle
-                    columnId="delta"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'delta'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.bench}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
-                >
-                  Compliance Progress
-                  <ResizeHandle
-                    columnId="bench"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'bench'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${elemWidths.action}px` }}
-                  className="px-4 py-3 text-center relative select-none"
-                >
-                  Action
-                  <ResizeHandle
-                    columnId="action"
-                    onMouseDown={handleElemResize}
-                    onDoubleClick={handleElemDblClick}
-                    isActive={elemActiveResizer === 'action'}
-                  />
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 text-sm">
-              {currentMetric.elements.map((el) => {
-                const themeCol = getScoreTheme(el.postCapaPct);
-
-                return (
-                  <tr key={el.s_no} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 border-r border-slate-200 text-center font-mono font-bold text-slate-600">
-                      {el.s_no}
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-200">
-                      <div className="font-semibold text-slate-800">{el.element_name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{el.sheet_ref}</div>
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-200 font-mono text-xs">
-                      <span className="font-bold text-slate-700">{el.baselinePct.toFixed(1)}%</span>
-                      <span className="text-[11px] text-slate-400 ml-1.5">
-                        ({el.baselineAvg.toFixed(2)}/4)
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-200 font-mono text-xs">
-                      <span className="font-bold text-indigo-700">{el.postCapaPct.toFixed(1)}%</span>
-                      <span className="text-[11px] text-slate-400 ml-1.5">
-                        ({el.postCapaAvg.toFixed(2)}/4)
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-200">
-                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
-                        +{el.deltaPct.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-r border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden relative">
-                          {/* Baseline bar */}
-                          <div
-                            className="h-full bg-slate-300 absolute top-0 left-0"
-                            style={{ width: `${Math.min(100, el.baselinePct)}%` }}
-                          />
-                          {/* Post-capa bar */}
-                          <div
-                            className="h-full bg-indigo-600 absolute top-0 left-0 opacity-80"
-                            style={{ width: `${Math.min(100, el.postCapaPct)}%` }}
-                          />
-                        </div>
-                        <span className="font-mono text-xs font-bold text-slate-700 shrink-0">
-                          {el.postCapaPct.toFixed(0)}%
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left border-collapse min-w-[750px]">
+              <thead>
+                <tr className="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                  <th style={{ width: `${elemWidths.sl}px` }} className="px-3 py-2.5 border-r border-slate-200 text-center">
+                    #
+                  </th>
+                  <th style={{ width: `${elemWidths.elem}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                    Element Name
+                  </th>
+                  <th style={{ width: `${elemWidths.baseline}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                    Baseline Score
+                  </th>
+                  <th style={{ width: `${elemWidths.postCapa}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                    Post-CAPA Score
+                  </th>
+                  <th style={{ width: `${elemWidths.delta}px` }} className="px-4 py-2.5 border-r border-slate-200">
+                    Delta
+                  </th>
+                  <th style={{ width: `${elemWidths.capaStats}px` }} className="px-4 py-2.5 border-r border-slate-200 text-center">
+                    CAPA Actions
+                  </th>
+                  <th style={{ width: `${elemWidths.action}px` }} className="px-3 py-2.5 text-center">
+                    Checklist
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-xs">
+                {currentMetric.elements.map((el) => {
+                  const elTheme = getScoreTheme(el.postCapaPct);
+                  return (
+                    <tr key={el.s_no} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3 py-2.5 border-r border-slate-200 text-center font-bold text-slate-400">
+                        {el.s_no}
+                      </td>
+                      <td className="px-4 py-2.5 border-r border-slate-200 font-semibold text-slate-800">
+                        {el.element_name}
+                      </td>
+                      <td className="px-4 py-2.5 border-r border-slate-200 font-mono text-slate-600">
+                        {el.baselinePct.toFixed(1)}% ({(el.baselineAvg || 0).toFixed(2)}/4)
+                      </td>
+                      <td className="px-4 py-2.5 border-r border-slate-200">
+                        <span className={`inline-flex px-2 py-0.5 rounded font-mono font-bold border ${elTheme.bg} ${elTheme.text} ${elTheme.border}`}>
+                          {el.postCapaPct.toFixed(1)}% ({(el.postCapaAvg || 0).toFixed(2)}/4)
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => onSelectSheet(el.sheet_ref)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 text-xs font-semibold transition"
-                      >
-                        <span>Open</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-4 py-2.5 border-r border-slate-200 font-mono font-semibold text-emerald-700">
+                        +{el.deltaPct.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-2.5 border-r border-slate-200 text-center">
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {el.verifiedCapaCount > 0 ? (
+                            <span className="text-emerald-700 font-bold">{el.verifiedCapaCount} Verified</span>
+                          ) : el.openCapaCount > 0 ? (
+                            <span className="text-amber-700 font-bold">{el.openCapaCount} Open</span>
+                          ) : (
+                            <span className="text-slate-400">0 Actions</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          onClick={() => onSelectSheet(el.sheet_ref)}
+                          className="px-2 py-1 rounded text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition inline-flex items-center gap-1"
+                        >
+                          Open
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

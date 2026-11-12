@@ -29,12 +29,12 @@ ChartJS.register(
 );
 
 const UNIT_COLORS = [
-  { fill: 'rgba(59, 130, 246, 0.8)', border: '#2563eb', label: 'Unit 1 (API & Bulk Drugs)' },
-  { fill: 'rgba(16, 185, 129, 0.8)', border: '#059669', label: 'Unit 2 (Formulations)' },
-  { fill: 'rgba(245, 158, 11, 0.8)', border: '#d97706', label: 'Unit 3 (Chemical Synthesis)' },
-  { fill: 'rgba(139, 92, 246, 0.8)', border: '#7c3aed', label: 'Unit 4 (R&D & Pilot)' },
-  { fill: 'rgba(6, 182, 212, 0.8)', border: '#0891b2', label: 'Unit 5 (Logistics Hub)' },
-  { fill: 'rgba(244, 63, 94, 0.8)', border: '#e11d48', label: 'Unit 6 (Utilities Block)' }
+  { fill: 'rgba(59, 130, 246, 0.8)', border: '#2563eb' }, // U-1 (BPL - API)
+  { fill: 'rgba(16, 185, 129, 0.8)', border: '#059669' }, // U-2 (JDM - API)
+  { fill: 'rgba(139, 92, 246, 0.8)', border: '#7c3aed' }, // U-4 (VSKP - API)
+  { fill: 'rgba(6, 182, 212, 0.8)', border: '#0891b2' },  // U-5 (Parawada - API)
+  { fill: 'rgba(245, 158, 11, 0.8)', border: '#d97706' }, // U-6 (GGP - FD)
+  { fill: 'rgba(244, 63, 94, 0.8)', border: '#e11d48' }   // U-7 (GLS - FD)
 ];
 
 export default function InteractiveAnalytics({
@@ -285,7 +285,17 @@ export default function InteractiveAnalytics({
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {units.map((u, i) => {
-              const metrics = unitMetrics[u.id] || { baselineScore: 0.6, capaScore: 0.65, delta: 0.05, activeLevel: { level: 'Level III' } };
+              const metrics = unitMetrics[u.id] || { postCapaScorePct: 0, deltaPct: 0, maturityLevel: { level: 'Level - I' } };
+              const scorePct = typeof metrics.postCapaScorePct === 'number'
+                ? metrics.postCapaScorePct
+                : typeof metrics.capaScore === 'number'
+                ? metrics.capaScore * (metrics.capaScore <= 1 ? 100 : 1)
+                : 0;
+              const delta = typeof metrics.deltaPct === 'number'
+                ? metrics.deltaPct
+                : typeof metrics.delta === 'number'
+                ? metrics.delta * (metrics.delta <= 1 ? 100 : 1)
+                : 0;
               const color = UNIT_COLORS[i % UNIT_COLORS.length];
               const isSelected = selectedUnitFilter === u.id;
 
@@ -314,18 +324,18 @@ export default function InteractiveAnalytics({
                     <div>
                       <span className="text-[9px] text-slate-400 uppercase block">Score</span>
                       <span className="text-lg font-black font-mono text-slate-900">
-                        {(metrics.capaScore * 100).toFixed(0)}%
+                        {scorePct.toFixed(1)}%
                       </span>
                     </div>
-                    {metrics.delta > 0 && (
+                    {delta > 0 && (
                       <span className="text-[10px] font-bold font-mono text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded">
-                        +{(metrics.delta * 100).toFixed(0)}%
+                        +{delta.toFixed(1)}%
                       </span>
                     )}
                   </div>
 
                   <div className="mt-1.5 text-[10px] font-semibold text-slate-500 truncate">
-                    {metrics.activeLevel?.level || 'Level III'}
+                    {metrics.maturityLevel?.level || metrics.activeLevel?.level || 'Level - III'}
                   </div>
                 </div>
               );

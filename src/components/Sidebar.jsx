@@ -97,16 +97,16 @@ export default function Sidebar({
 
   const coreSections = [
     {
+      id: 'Summary',
+      label: 'Org EHS Maturity (Landing)',
+      badge: 'Executive',
+      icon: <LayoutDashboard className="w-4 h-4 text-amber-400" />
+    },
+    {
       id: 'Audit',
       label: 'Comprehensive Safety Audit',
       badge: 'Assessment',
       icon: <FileCheck2 className="w-4 h-4 text-emerald-400" />
-    },
-    {
-      id: 'Summary',
-      label: 'Summary & Unit Benchmark',
-      badge: 'Overview',
-      icon: <LayoutDashboard className="w-4 h-4 text-amber-400" />
     },
     {
       id: 'Analytics',

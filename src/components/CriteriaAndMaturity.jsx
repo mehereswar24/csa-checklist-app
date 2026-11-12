@@ -18,9 +18,8 @@ import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
 
 const CRITERIA_TABLE_WIDTHS = {
   score: 100,
-  degree: 420,
-  weight: 160,
-  indicator: 160
+  degree: 540,
+  weight: 220
 };
 
 const MATURITY_TABLE_WIDTHS = {
@@ -476,7 +475,7 @@ export default function CriteriaAndMaturity({
                 </th>
                 <th
                   style={{ width: `${criteriaWidths.weight}px` }}
-                  className="px-4 py-3 border-r border-slate-200 relative select-none"
+                  className="px-4 py-3 relative select-none"
                 >
                   Compliance Weight
                   <ResizeHandle
@@ -484,18 +483,6 @@ export default function CriteriaAndMaturity({
                     onMouseDown={handleCriteriaResize}
                     onDoubleClick={handleCriteriaDblClick}
                     isActive={criteriaActiveResizer === 'weight'}
-                  />
-                </th>
-                <th
-                  style={{ width: `${criteriaWidths.indicator}px` }}
-                  className="px-4 py-3 relative select-none"
-                >
-                  Rating Indicator
-                  <ResizeHandle
-                    columnId="indicator"
-                    onMouseDown={handleCriteriaResize}
-                    onDoubleClick={handleCriteriaDblClick}
-                    isActive={criteriaActiveResizer === 'indicator'}
                   />
                 </th>
               </tr>
@@ -537,11 +524,6 @@ export default function CriteriaAndMaturity({
                         </div>
                         <span className="font-mono text-xs font-bold text-slate-700">{colors.pct}</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold border ${colors.badge}`}>
-                        {colors.text}
-                      </span>
                     </td>
                   </tr>
                 );
