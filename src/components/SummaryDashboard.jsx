@@ -120,6 +120,7 @@ export default function SummaryDashboard({
   theme
 }) {
   const [chartView, setChartView] = useState('both'); // 'bar', 'radar', 'both'
+  const [selectedElementIdx, setSelectedElementIdx] = useState(0);
 
   // Resizing hooks
   const {
@@ -345,6 +346,96 @@ export default function SummaryDashboard({
     });
   }, [units, unitMetrics]);
 
+  // Selected Element Cross-Plant Benchmark calculation
+  const selectedElement = matrix19Elements[selectedElementIdx] || matrix19Elements[0] || {};
+
+  const elementPlantScores = useMemo(() => {
+    return units.map((u) => {
+      const isAvail = u.available !== false && u.status !== 'Not Available Now';
+      const elData = unitMetrics[u.id]?.elements?.[selectedElementIdx];
+      return {
+        unitId: u.id,
+        code: u.code,
+        name: u.name,
+        division: u.division,
+        isAvailable: isAvail,
+        baselinePct: isAvail && typeof elData?.baselinePct === 'number' ? Math.round(elData.baselinePct * 10) / 10 : 0,
+        postCapaPct: isAvail && typeof elData?.postCapaPct === 'number' ? Math.round(elData.postCapaPct * 10) / 10 : 0,
+        deltaPct: isAvail && typeof elData?.deltaPct === 'number' ? Math.round(elData.deltaPct * 10) / 10 : 0
+      };
+    });
+  }, [units, unitMetrics, selectedElementIdx]);
+
+  const topPlantForElement = useMemo(() => {
+    const valid = elementPlantScores.filter((p) => p.isAvailable && p.postCapaPct > 0);
+    if (valid.length === 0) return null;
+    return [...valid].sort((a, b) => b.postCapaPct - a.postCapaPct)[0];
+  }, [elementPlantScores]);
+
+  const elementComparisonChartData = {
+    labels: elementPlantScores.map((p) =>
+      p.isAvailable ? `${p.code} (${p.division})` : `${p.code} (N/A)`
+    ),
+    datasets: [
+      {
+        label: 'Baseline Audit Score (%)',
+        data: elementPlantScores.map((p) => p.baselinePct),
+        backgroundColor: 'rgba(148, 163, 184, 0.7)',
+        borderColor: '#64748b',
+        borderWidth: 1.5,
+        borderRadius: 4
+      },
+      {
+        label: 'Post-CAPA Effective Score (%)',
+        data: elementPlantScores.map((p) => p.postCapaPct),
+        backgroundColor: elementPlantScores.map((p) =>
+          !p.isAvailable
+            ? 'rgba(203, 213, 225, 0.4)'
+            : p.division === 'FD'
+            ? 'rgba(168, 85, 247, 0.85)'
+            : 'rgba(59, 130, 246, 0.85)'
+        ),
+        borderColor: elementPlantScores.map((p) =>
+          !p.isAvailable ? '#cbd5e1' : p.division === 'FD' ? '#9333ea' : '#2563eb'
+        ),
+        borderWidth: 1.5,
+        borderRadius: 4
+      }
+    ]
+  };
+
+  const elementComparisonChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { font: { size: 11, weight: '600' } }
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const p = elementPlantScores[ctx.dataIndex];
+            if (!p || !p.isAvailable) return `${ctx.dataset.label}: Not Available Now (Audit Pending)`;
+            return `${ctx.dataset.label}: ${ctx.raw}% (${(ctx.raw / 25).toFixed(2)}/4.0)`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        ticks: { callback: (v) => `${v}%`, font: { size: 10 } },
+        grid: { color: '#f1f5f9' }
+      },
+      x: {
+        ticks: { font: { size: 11, weight: '600' } },
+        grid: { display: false }
+      }
+    }
+  };
+
   // Selected Unit Data
   const currentUnit = units.find((u) => u.id === selectedUnitId) || units[0] || {};
   const isCurrentUnitAvailable = currentUnit.available !== false && currentUnit.status !== 'Not Available Now';
@@ -458,7 +549,7 @@ export default function SummaryDashboard({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
               <Building2 className="w-3.5 h-3.5" />
-              Org EHS Maturity â€¢ Executive Landing Page
+              Granules EHS Maturity • Executive Landing Page
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               Enterprise Safety & Operational Maturity
@@ -819,7 +910,7 @@ export default function SummaryDashboard({
             </div>
 
             <h3 className="text-xl font-extrabold text-white tracking-tight">
-              Organization EHS Maturity
+              Granules EHS Maturity (Enterprise Rollup)
             </h3>
             <p className="text-xs text-indigo-200/70 mt-1">
               Overall safety maturity aggregated across all active API & Finished Dosage manufacturing units.
@@ -1014,6 +1105,136 @@ export default function SummaryDashboard({
                 );
               })}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ELEMENT-WISE CROSS-PLANT PERFORMANCE GRAPH                                */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Element Cross-Plant Analytics
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              Cross-Plant Performance Graph: {selectedElement?.element_name || 'EHS Element'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Select any of the 19 EHS elements to inspect compliance score distribution across all Granules manufacturing plants.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Element Selector Dropdown */}
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+              <Layers className="w-4 h-4 text-indigo-600 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Select EHS Element (1 - 19)
+                </span>
+                <select
+                  value={selectedElementIdx}
+                  onChange={(e) => setSelectedElementIdx(Number(e.target.value))}
+                  className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-3 max-w-[260px] truncate"
+                >
+                  {matrix19Elements.map((el, idx) => (
+                    <option key={el.s_no} value={idx}>
+                      {el.s_no}. {el.element_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Jump to Element Checklist */}
+            {selectedElement?.sheet_ref && (
+              <button
+                onClick={() => onSelectSheet(selectedElement.sheet_ref)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition shadow-2xs"
+                title={`Open checklist for ${selectedElement.element_name}`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open Element Checklist
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Element Summary Metric Badges */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Org Average %
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold font-mono text-slate-800">
+                {selectedElement?.orgAvgPct !== null ? `${selectedElement.orgAvgPct.toFixed(1)}%` : 'N/A'}
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">All Plants</span>
+            </div>
+          </div>
+
+          <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block mb-1">
+              API Cluster Avg %
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold font-mono text-blue-700">
+                {selectedElement?.apiAvgPct !== null ? `${selectedElement.apiAvgPct.toFixed(1)}%` : 'N/A'}
+              </span>
+              <span className="text-[11px] text-blue-500 font-medium">4 API Plants</span>
+            </div>
+          </div>
+
+          <div className="bg-purple-50/60 p-3.5 rounded-xl border border-purple-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block mb-1">
+              FD Cluster Avg %
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-bold font-mono text-purple-700">
+                {selectedElement?.fdAvgPct !== null ? `${selectedElement.fdAvgPct.toFixed(1)}%` : 'N/A'}
+              </span>
+              <span className="text-[11px] text-purple-500 font-medium">Unit-6 GGP</span>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block mb-1">
+              Top Performing Plant
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-base font-bold font-mono text-emerald-800 truncate">
+                {topPlantForElement ? `${topPlantForElement.code} (${topPlantForElement.postCapaPct.toFixed(1)}%)` : 'N/A'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Grouped Bar Graph */}
+        <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+              {selectedElement ? `${selectedElement.s_no}. ${selectedElement.element_name}` : 'Element'} — Plant-by-Plant Compliance Scores
+            </span>
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <span className="w-3 h-3 rounded-xs bg-slate-400 inline-block" /> Baseline Score
+              </span>
+              <span className="flex items-center gap-1.5 text-blue-700 font-bold">
+                <span className="w-3 h-3 rounded-xs bg-blue-600 inline-block" /> API Post-CAPA
+              </span>
+              <span className="flex items-center gap-1.5 text-purple-700 font-bold">
+                <span className="w-3 h-3 rounded-xs bg-purple-600 inline-block" /> FD Post-CAPA
+              </span>
+            </div>
+          </div>
+
+          <div className="h-72 w-full">
+            <Bar data={elementComparisonChartData} options={elementComparisonChartOptions} />
           </div>
         </div>
       </div>

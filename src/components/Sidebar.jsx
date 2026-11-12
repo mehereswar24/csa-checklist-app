@@ -98,7 +98,7 @@ export default function Sidebar({
   const coreSections = [
     {
       id: 'Summary',
-      label: 'Org EHS Maturity (Landing)',
+      label: 'Granules EHS Maturity (Landing)',
       badge: 'Executive',
       icon: <LayoutDashboard className="w-4 h-4 text-amber-400" />
     },

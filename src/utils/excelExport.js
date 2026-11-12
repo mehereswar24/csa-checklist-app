@@ -9,7 +9,7 @@ export function exportToExcel(data, selectedUnitId = 'unit_1') {
 
   // 1. Multi-Unit Benchmark Summary Sheet
   const benchmarkRows = [
-    ['Org EHS Maturity - Multi-Unit Cross Benchmark Report'],
+    ['Granules EHS Maturity - Multi-Unit Cross Benchmark Report'],
     [`Generated Date: ${new Date().toLocaleDateString()}`],
     [],
     ['Unit Code', 'Unit Facility Name', 'Location', 'Baseline Score %', 'Post-CAPA Score %', 'CAPA Delta Gain', 'Maturity Level']

@@ -162,7 +162,7 @@ export default function ComprehensiveSafetyAudit({
                 <span className="text-[10px] md:text-[11px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded-md">
                   Governance & Administration
                 </span>
-                <span className="text-xs font-mono text-slate-400">Org EHS Maturity</span>
+                <span className="text-xs font-mono text-slate-400">Granules EHS Maturity</span>
               </div>
               <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">
                 Comprehensive Safety Audit (Maturity Assessment)

@@ -354,7 +354,7 @@ export default function App() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">
-                  Org EHS Maturity
+                  Granules EHS Maturity
                 </span>
                 <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-white/15 px-2 py-0.5 rounded-md text-indigo-100">
                   6 Units
