@@ -407,7 +407,7 @@ def main():
         "units": all_units
     }
 
-    out_file = os.path.join(BASE_DIR, "src", "multi_units_data.json")
+    out_file = os.path.join(BASE_DIR, "src", "data", "multi_units_data.json")
     print(f"Writing complete dataset to {out_file}...")
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(final_data, f, ensure_ascii=False, indent=2)

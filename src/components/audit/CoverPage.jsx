@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Trash2, Calendar, FileText, MapPin, RotateCcw } from 'lucide-react';
-import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
+import { useTableResize, ResizeHandle } from '../../hooks/useTableResize.jsx';
 
 const AUDITOR_CP_WIDTHS = {
   sno: 50,

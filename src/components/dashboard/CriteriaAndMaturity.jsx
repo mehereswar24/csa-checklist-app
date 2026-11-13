@@ -14,7 +14,7 @@ import {
   FileCheck2,
   Sparkles
 } from 'lucide-react';
-import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
+import { useTableResize, ResizeHandle } from '../../hooks/useTableResize.jsx';
 
 const CRITERIA_TABLE_WIDTHS = {
   score: 100,

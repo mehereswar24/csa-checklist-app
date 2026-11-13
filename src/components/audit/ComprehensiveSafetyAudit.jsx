@@ -32,7 +32,7 @@ import {
   Clock,
   ExternalLink
 } from 'lucide-react';
-import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
+import { useTableResize, ResizeHandle } from '../../hooks/useTableResize.jsx';
 
 ChartJS.register(
   CategoryScale,

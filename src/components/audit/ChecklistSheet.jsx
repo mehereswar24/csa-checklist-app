@@ -22,7 +22,7 @@ import {
   X,
   Award
 } from 'lucide-react';
-import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
+import { useTableResize, ResizeHandle } from '../../hooks/useTableResize.jsx';
 
 const DEFAULT_WIDTHS = {
   sno: 55,

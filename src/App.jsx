@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import initialData from './multi_units_data.json';
-import ComprehensiveSafetyAudit from './components/ComprehensiveSafetyAudit.jsx';
-import SummaryDashboard from './components/SummaryDashboard.jsx';
-import InteractiveAnalytics from './components/InteractiveAnalytics.jsx';
-import CriteriaAndMaturity from './components/CriteriaAndMaturity.jsx';
-import ChecklistSheet from './components/ChecklistSheet.jsx';
-import Sidebar from './components/Sidebar.jsx';
-import { THEMES, FONTS } from './themes.js';
+import initialData from './data/multi_units_data.json';
+import ComprehensiveSafetyAudit from './components/audit/ComprehensiveSafetyAudit.jsx';
+import ChecklistSheet from './components/audit/ChecklistSheet.jsx';
+import SummaryDashboard from './components/dashboard/SummaryDashboard.jsx';
+import CriteriaAndMaturity from './components/dashboard/CriteriaAndMaturity.jsx';
+import InteractiveAnalytics from './components/analytics/InteractiveAnalytics.jsx';
+import Sidebar from './components/common/Sidebar.jsx';
+import { THEMES, FONTS } from './utils/themes.js';
 import { exportToExcel } from './utils/excelExport.js';
 import {
   Download,
