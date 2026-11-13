@@ -32,7 +32,7 @@ const UNIT_COLORS = [
   { fill: 'rgba(59, 130, 246, 0.8)', border: '#2563eb' }, // U-1 (BPL - API)
   { fill: 'rgba(16, 185, 129, 0.8)', border: '#059669' }, // U-2 (JDM - API)
   { fill: 'rgba(139, 92, 246, 0.8)', border: '#7c3aed' }, // U-4 (VSKP - API)
-  { fill: 'rgba(6, 182, 212, 0.8)', border: '#0891b2' },  // U-5 (Parawada - API)
+  { fill: 'rgba(6, 182, 212, 0.8)', border: '#0891b2' },  // U-5 (Vishakapatnam - API)
   { fill: 'rgba(245, 158, 11, 0.8)', border: '#d97706' }, // U-6 (GGP - FD)
   { fill: 'rgba(244, 63, 94, 0.8)', border: '#e11d48' }   // U-7 (GLS - FD)
 ];
@@ -80,7 +80,7 @@ export default function InteractiveAnalytics({
     const avgScore = activeScores.reduce((a, b) => a + b, 0) / activeScores.length;
 
     return {
-      sl_no: elem.sl_no,
+      sl_no: elem.s_no || elem.sl_no || (elemIdx + 1),
       element_name: elem.element_name,
       sheet_ref: elem.sheet_ref,
       unitScores,
@@ -89,14 +89,15 @@ export default function InteractiveAnalytics({
   });
 
   // Prepare chart datasets
-  const labels = elementComparison.map((e) => `${e.sl_no}. ${e.element_name.length > 15 ? e.element_name.substring(0, 14) + '..' : e.element_name}`);
+  const labels = elementComparison.map((e, idx) => `${e.sl_no || (idx + 1)}. ${e.element_name.length > 15 ? e.element_name.substring(0, 14) + '..' : e.element_name}`);
 
   let datasets = [];
   if (selectedUnitFilter === 'all') {
     datasets = units.map((u, i) => {
       const color = UNIT_COLORS[i % UNIT_COLORS.length];
+      const unitShortName = u.name.includes('(') ? u.name.split('(')[1].replace(')', '').trim() : u.name;
       return {
-        label: `${u.code} (${u.name.split('-')[1]?.trim() || u.name})`,
+        label: `${u.code} (${unitShortName})`,
         data: elementComparison.map((e) => {
           const us = e.unitScores.find((s) => s.unitId === u.id);
           return Math.round((scoreMetricType === 'capa' ? us?.capa : us?.baseline) || 0);
@@ -143,9 +144,64 @@ export default function InteractiveAnalytics({
     datasets
   };
 
+  const barTopLabelsPlugin = {
+    id: 'barTopLabelsInteractive',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (meta.hidden) return;
+
+        meta.data.forEach((bar, index) => {
+          const val = dataset.data[index];
+          if (val === null || val === undefined) return;
+
+          // For Unit 7 (GLS) in 'all' view, datasetIndex === 5 is GLS which is Not Available
+          const isGls = selectedUnitFilter === 'all'
+            ? datasetIndex === 5
+            : units.find((u) => u.id === selectedUnitFilter)?.available === false;
+
+          let text = '';
+          if (isGls) {
+            text = 'N/A';
+          } else if (typeof val === 'number') {
+            text = `${Math.round(val)}%`;
+          }
+
+          if (!text) return;
+
+          ctx.save();
+          const barWidth = bar.width || 12;
+          const yPos = bar.y - 3;
+
+          if (barWidth < 18) {
+            // In 6-unit comparative bar graphs, numbers are placed neatly above each bar rotated vertically
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.translate(bar.x, yPos);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 2, 0);
+          } else {
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillStyle = datasetIndex === 0 ? '#475569' : '#0f172a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(text, bar.x, yPos);
+          }
+          ctx.restore();
+        });
+      });
+    }
+  };
+
   const barChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 25, left: 6, right: 6, bottom: 0 }
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -168,8 +224,12 @@ export default function InteractiveAnalytics({
     scales: {
       y: {
         beginAtZero: true,
-        max: 100,
-        ticks: { callback: (v) => `${v}%`, font: { size: 10 } },
+        max: 120,
+        ticks: {
+          callback: (v) => (v <= 100 ? `${v}%` : ''),
+          stepSize: 20,
+          font: { size: 10 }
+        },
         grid: { color: '#f1f5f9' }
       },
       x: {
@@ -367,8 +427,8 @@ export default function InteractiveAnalytics({
         </div>
 
         {chartType === 'bar' ? (
-          <div className="h-[420px] w-full">
-            <Bar data={barChartData} options={barChartOptions} />
+          <div className="h-[460px] w-full">
+            <Bar data={barChartData} options={barChartOptions} plugins={[barTopLabelsPlugin]} />
           </div>
         ) : (
           <div className="h-[420px] w-full flex items-center justify-center">

@@ -255,9 +255,50 @@ export default function ComprehensiveSafetyAudit({
     ]
   };
 
+  const barTopLabelsPlugin = {
+    id: 'barTopLabelsCsa',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (meta.hidden) return;
+
+        meta.data.forEach((bar, index) => {
+          const val = dataset.data[index];
+          if (val === null || val === undefined) return;
+          const text = `${Math.round(val * 10) / 10}%`;
+
+          ctx.save();
+          const barWidth = bar.width || 12;
+          const yPos = bar.y - 3;
+
+          if (barWidth < 18) {
+            ctx.font = 'bold 8px sans-serif';
+            ctx.fillStyle = '#1e293b';
+            ctx.translate(bar.x, yPos);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 2, 0);
+          } else {
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillStyle = datasetIndex === 0 ? '#475569' : '#0f172a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(text, bar.x, yPos);
+          }
+          ctx.restore();
+        });
+      });
+    }
+  };
+
   const barChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 22, left: 4, right: 4, bottom: 0 }
+    },
     plugins: {
       legend: { position: 'top', labels: { font: { size: 11, weight: '600' } } },
       tooltip: {
@@ -269,8 +310,12 @@ export default function ComprehensiveSafetyAudit({
     scales: {
       y: {
         beginAtZero: true,
-        max: 100,
-        ticks: { callback: (v) => `${v}%`, font: { size: 10 } },
+        max: 115,
+        ticks: {
+          callback: (v) => (v <= 100 ? `${v}%` : ''),
+          stepSize: 20,
+          font: { size: 10 }
+        },
         grid: { color: '#f1f5f9' }
       },
       x: {
@@ -935,7 +980,7 @@ export default function ComprehensiveSafetyAudit({
               <div className={`grid gap-6 ${chartView === 'both' ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
                 {(chartView === 'both' || chartView === 'bar') && (
                   <div className={`${chartView === 'both' ? 'lg:col-span-2' : ''} bg-slate-50/50 rounded-xl p-4 border border-slate-200 h-80`}>
-                    <Bar data={barChartData} options={barChartOptions} />
+                    <Bar data={barChartData} options={barChartOptions} plugins={[barTopLabelsPlugin]} />
                   </div>
                 )}
                 {(chartView === 'both' || chartView === 'radar') && (

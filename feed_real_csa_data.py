@@ -356,13 +356,13 @@ def main():
 
     unit_5 = synthesize_unit(
         code="UNIT-5",
-        name="Unit-V (Parawada - VSKP API)",
+        name="Unit-V (Vishakapatnam - VSKP)",
         division="API",
         division_name="Active Pharmaceutical Ingredients (API)",
-        location="Parawada, Visakhapatnam, Andhra Pradesh",
-        doc_no="CSA-PAR-U5-2026-05",
+        location="Vishakapatnam (VSKP), Andhra Pradesh",
+        doc_no="CSA-VSKP-U5-2026-05",
         base_unit=unit_4,
-        score_multiplier=1.08
+        score_multiplier=1.00
     )
 
     # 2. FD Units (Finished Dosage: GGP, GLS)
@@ -379,10 +379,10 @@ def main():
 
     unit_7 = create_empty_unit(
         code="GLS",
-        name="GLS (Growth Lab Sterile - FD)",
+        name="GLS (Granules Life Sciences - FD)",
         division="FD",
         division_name="Finished Dosage & Formulations (FD)",
-        location="GLS Facility, Hyderabad, Telangana",
+        location="Granules Life Sciences, Hyderabad, Telangana",
         doc_no="CSA-GLS-U7-PENDING",
         base_unit=unit_1
     )

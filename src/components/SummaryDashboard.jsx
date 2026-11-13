@@ -375,9 +375,46 @@ export default function SummaryDashboard({
     ]
   };
 
+  const barTopLabelsPlugin = useMemo(() => ({
+    id: 'barTopLabelsSummary',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (meta.hidden) return;
+
+        meta.data.forEach((bar, index) => {
+          const val = dataset.data[index];
+          const plant = elementPlantScores[index];
+          const isAvail = plant?.isAvailable;
+
+          let text = '';
+          if (!isAvail) {
+            text = datasetIndex === 1 ? 'N/A' : '';
+          } else if (val !== null && val !== undefined) {
+            text = `${Math.round(val * 10) / 10}%`;
+          }
+
+          if (!text) return;
+
+          ctx.save();
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = datasetIndex === 0 ? '#475569' : '#0f172a';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(text, bar.x, bar.y - 4);
+          ctx.restore();
+        });
+      });
+    }
+  }), [elementPlantScores]);
+
   const elementComparisonChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 22, left: 6, right: 6, bottom: 0 }
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -396,8 +433,12 @@ export default function SummaryDashboard({
     scales: {
       y: {
         beginAtZero: true,
-        max: 100,
-        ticks: { callback: (v) => `${v}%`, font: { size: 10 } },
+        max: 115,
+        ticks: {
+          callback: (v) => (v <= 100 ? `${v}%` : ''),
+          stepSize: 20,
+          font: { size: 10 }
+        },
         grid: { color: '#f1f5f9' }
       },
       x: {
@@ -435,34 +476,6 @@ export default function SummaryDashboard({
               <FileCheck2 className="w-4 h-4" />
               Comprehensive Safety Audit
             </button>
-
-            {/* Active Focus Unit Switcher */}
-            <div className="flex items-center gap-2.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-              <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Focus Unit
-                </span>
-                <select
-                  value={selectedUnitId}
-                  onChange={(e) => onSelectUnit(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-2"
-                >
-                  {units.map((u) => {
-                    const isAvail = u.available !== false && u.status !== 'Not Available Now';
-                    const m = unitMetrics[u.id];
-                    return (
-                      <option key={u.id} value={u.id}>
-                        {u.code} - {u.name.split('(')[0].trim()}{' '}
-                        {isAvail && m?.postCapaScorePct !== null
-                          ? `(${m.postCapaScorePct.toFixed(1)}%)`
-                          : '(Not Available Now)'}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -529,7 +542,7 @@ export default function SummaryDashboard({
               API Cluster Maturity
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Active Pharmaceutical Ingredients: <strong>Unit 1 (BPL)</strong>, <strong>Unit 2 (JDM)</strong>, <strong>Unit 4 (VSKP)</strong> & <strong>Unit 5 (Parawada)</strong>.
+              Active Pharmaceutical Ingredients: <strong>Unit 1 (BPL)</strong>, <strong>Unit 2 (JDM)</strong>, <strong>Unit 4 (VSKP)</strong> & <strong>Unit 5 (VSKP)</strong>.
             </p>
 
             <div className="mt-5 flex items-baseline gap-3">
@@ -790,7 +803,7 @@ export default function SummaryDashboard({
           </div>
 
           <div className="h-72 w-full">
-            <Bar data={elementComparisonChartData} options={elementComparisonChartOptions} />
+            <Bar data={elementComparisonChartData} options={elementComparisonChartOptions} plugins={[barTopLabelsPlugin]} />
           </div>
         </div>
       </div>
@@ -932,7 +945,7 @@ export default function SummaryDashboard({
                   style={{ width: `${matrixWidths.unit5}px` }}
                   className="px-3 py-3 border-r border-slate-200 text-center relative select-none"
                 >
-                  U-5 (PAR)
+                  U-5 (VSKP)
                   <ResizeHandle
                     columnId="unit5"
                     onMouseDown={handleMatrixResize}

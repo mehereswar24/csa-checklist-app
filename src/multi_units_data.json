@@ -24567,15 +24567,15 @@
     {
       "id": "unit_4",
       "code": "UNIT-4",
-      "name": "Unit-IV (Visakhapatnam - VSKP)",
+      "name": "Unit-IV (Vishakapatnam - VSKP)",
       "division": "API",
       "division_name": "Active Pharmaceutical Ingredients (API)",
       "cover_page": {
-        "title": "Comprehensive Safety Audit (CSA) Report - Unit-IV (Visakhapatnam - VSKP)",
+        "title": "Comprehensive Safety Audit (CSA) Report - Unit-IV (Vishakapatnam - VSKP)",
         "subtitle": "Safety Management System & Process Safety Management Gap Assessment",
         "document_no": "CSA-VSKP-U4-2026-04",
-        "unit_location": "Visakhapatnam (VSKP), Andhra Pradesh",
-        "location": "Visakhapatnam (VSKP), Andhra Pradesh",
+        "unit_location": "Vishakapatnam (VSKP), Andhra Pradesh",
+        "location": "Vishakapatnam (VSKP), Andhra Pradesh",
         "assessment_stage": "Comprehensive Safety Audit (CSA) - Assessment",
         "hazard_classification": "Major Hazard Installation (MHI) - Class A Bulk Synthesis",
         "report_date": "2026-05-10",
@@ -36758,20 +36758,21 @@
           "initial_total": 48,
           "initial_compliance_score": 0.35294117647058826
         }
-      ]
+      ],
+      "location": "Vishakapatnam (VSKP), Andhra Pradesh"
     },
     {
       "id": "unit_5",
       "code": "UNIT-5",
-      "name": "Unit-V (Parawada - VSKP API)",
+      "name": "Unit-V (Vishakapatnam - VSKP)",
       "division": "API",
       "division_name": "Active Pharmaceutical Ingredients (API)",
       "cover_page": {
-        "title": "Comprehensive Safety Audit (CSA) Report - Unit-V (Parawada - VSKP API)",
+        "title": "Comprehensive Safety Audit (CSA) Report - Unit-V (Vishakapatnam - VSKP)",
         "subtitle": "Safety Management System & Process Safety Management Gap Assessment",
-        "document_no": "CSA-PAR-U5-2026-05",
-        "unit_location": "Parawada, Visakhapatnam, Andhra Pradesh",
-        "location": "Parawada, Visakhapatnam, Andhra Pradesh",
+        "document_no": "CSA-VSKP-U5-2026-05",
+        "unit_location": "Vishakapatnam (VSKP), Andhra Pradesh",
+        "location": "Vishakapatnam (VSKP), Andhra Pradesh",
         "assessment_stage": "Comprehensive Safety Audit (CSA) - Assessment",
         "hazard_classification": "Major Hazard Installation (MHI) - Class A Bulk Synthesis",
         "report_date": "2026-05-10",
@@ -48954,7 +48955,8 @@
           "initial_total": 48,
           "initial_compliance_score": 0.35294117647058826
         }
-      ]
+      ],
+      "location": "Vishakapatnam (VSKP), Andhra Pradesh"
     },
     {
       "id": "unit_6",
@@ -61157,15 +61159,15 @@
     {
       "id": "unit_7",
       "code": "GLS",
-      "name": "GLS (Growth Lab Sterile - FD)",
+      "name": "GLS (Granules Life Sciences - FD)",
       "division": "FD",
       "division_name": "Finished Dosage & Formulations (FD)",
       "cover_page": {
-        "title": "Comprehensive Safety Audit (CSA) Report - GLS (Growth Lab Sterile - FD)",
+        "title": "Comprehensive Safety Audit (CSA) Report - GLS (Granules Life Sciences)",
         "subtitle": "Safety Management System & Process Safety Management Gap Assessment",
         "document_no": "CSA-GLS-U7-PENDING",
-        "unit_location": "GLS Facility, Hyderabad, Telangana",
-        "location": "GLS Facility, Hyderabad, Telangana",
+        "unit_location": "Granules Life Sciences, Hyderabad, Telangana",
+        "location": "Granules Life Sciences, Hyderabad, Telangana",
         "assessment_stage": "Audit Report Not Available Now",
         "hazard_classification": "Sterile Injectables & Formulations",
         "report_date": "2026-05-02",
@@ -73272,7 +73274,8 @@
         }
       ],
       "available": false,
-      "status": "Not Available Now"
+      "status": "Not Available Now",
+      "location": "Granules Life Sciences, Hyderabad, Telangana"
     }
   ]
 }

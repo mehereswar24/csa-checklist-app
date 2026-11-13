@@ -25,7 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-const STORAGE_KEY = 'org_ehs_maturity_real_data_v7';
+const STORAGE_KEY = 'org_ehs_maturity_real_data_v8';
 const SIDEBAR_PREF_KEY = 'csa_sidebar_collapsed_pref';
 const THEME_PREF_KEY = 'csa_theme_pref';
 const FONT_PREF_KEY = 'csa_font_pref';
@@ -43,7 +43,9 @@ export default function App() {
           parsed.units[0].name.includes('BPL') &&
           !parsed.units.find(u => u.id === 'unit_3') &&
           parsed.units.find(u => u.id === 'unit_7')?.available === false &&
+          parsed.units.find(u => u.id === 'unit_7')?.name?.includes('Granules Life Sciences') &&
           parsed.units.find(u => u.id === 'unit_6')?.code === 'GGP' &&
+          parsed.units.find(u => u.id === 'unit_5')?.name?.includes('Vishakapatnam') &&
           parsed.logo === '/granules_logo.png'
         ) {
           return parsed;
