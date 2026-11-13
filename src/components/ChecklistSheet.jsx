@@ -25,18 +25,18 @@ import {
 import { useTableResize, ResizeHandle } from '../hooks/useTableResize.jsx';
 
 const DEFAULT_WIDTHS = {
-  sno: 50,
-  obs: 360,
-  ver: 360,
-  status: 110,
-  observation: 180,
-  score: 140,
-  recommendations: 180,
-  capaAction: 220,
-  capaScore: 110,
-  capaDate: 130,
-  capaVer: 120,
-  effectiveScore: 110
+  sno: 55,
+  obs: 380,
+  ver: 380,
+  status: 120,
+  observation: 360,
+  score: 150,
+  recommendations: 360,
+  capaAction: 380,
+  capaScore: 120,
+  capaDate: 140,
+  capaVer: 140,
+  effectiveScore: 125
 };
 
 export default function ChecklistSheet({
@@ -69,11 +69,15 @@ export default function ChecklistSheet({
     }));
   };
 
-  // Excel-like Column Resizing hook
+  // Excel-like Column Resizing hook with spacious defaults
   const { widths, handleMouseDown, handleDoubleClick, resetAll, activeResizer } = useTableResize(
     DEFAULT_WIDTHS,
-    'checklist_columns_v2'
+    'checklist_columns_v6'
   );
+
+  const totalTableWidth = useMemo(() => {
+    return Object.values(widths).reduce((a, b) => a + (Number(b) || 100), 0);
+  }, [widths]);
 
   // Helper to compute effective score reflecting added CAPA score
   const getCapaAdd = (q) => {
@@ -458,7 +462,24 @@ export default function ChecklistSheet({
       {viewMode === 'table' ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table
+              style={{ width: `${totalTableWidth}px`, minWidth: '100%', tableLayout: 'fixed' }}
+              className="text-left border-collapse text-xs"
+            >
+              <colgroup>
+                <col style={{ width: `${widths.sno}px` }} />
+                <col style={{ width: `${widths.obs}px` }} />
+                <col style={{ width: `${widths.ver}px` }} />
+                <col style={{ width: `${widths.status}px` }} />
+                <col style={{ width: `${widths.observation}px` }} />
+                <col style={{ width: `${widths.score}px` }} />
+                <col style={{ width: `${widths.recommendations}px` }} />
+                <col style={{ width: `${widths.capaAction}px` }} />
+                <col style={{ width: `${widths.capaScore}px` }} />
+                <col style={{ width: `${widths.capaDate}px` }} />
+                <col style={{ width: `${widths.capaVer}px` }} />
+                <col style={{ width: `${widths.effectiveScore}px` }} />
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
                   <th
@@ -513,7 +534,7 @@ export default function ChecklistSheet({
                     style={{ width: `${widths.observation}px` }}
                     className="px-3 py-3 border-r border-slate-200 relative select-none"
                   >
-                    Observation
+                    Observation / Remarks
                     <ResizeHandle
                       columnId="observation"
                       onMouseDown={handleMouseDown}
@@ -645,14 +666,14 @@ export default function ChecklistSheet({
                         </select>
                       </td>
 
-                      {/* Observation */}
+                      {/* Observation / Remarks */}
                       <td className="px-3 py-3 border-r border-slate-200 align-top">
                         <textarea
-                          rows={2}
+                          rows={4}
                           value={q.observation || ''}
                           onChange={(e) => onUpdateQuestion(checklist.sheet_name, q.id, 'observation', e.target.value)}
-                          placeholder="Audit observation..."
-                          className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-y"
+                          placeholder="Audit observation / remarks..."
+                          className="w-full min-h-[96px] bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1.5 focus:ring-[#0093dd]/40 focus:border-[#0093dd] leading-relaxed resize-y transition shadow-2xs font-normal"
                         />
                       </td>
 
@@ -719,22 +740,22 @@ export default function ChecklistSheet({
                       {/* Recommendations */}
                       <td className="px-3 py-3 border-r border-slate-200 align-top">
                         <textarea
-                          rows={2}
+                          rows={4}
                           value={q.recommendations || ''}
                           onChange={(e) => onUpdateQuestion(checklist.sheet_name, q.id, 'recommendations', e.target.value)}
-                          placeholder="Auditor recommendations..."
-                          className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 resize-y"
+                          placeholder="Auditor recommendations / corrective guidance..."
+                          className="w-full min-h-[96px] bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1.5 focus:ring-[#0093dd]/40 focus:border-[#0093dd] leading-relaxed resize-y transition shadow-2xs font-normal"
                         />
                       </td>
 
                       {/* CAPA Corrective and Preventive Action */}
                       <td className="px-3 py-3 border-r border-slate-200 align-top bg-indigo-50/20">
                         <textarea
-                          rows={2}
+                          rows={4}
                           value={q.capa_action || ''}
                           onChange={(e) => onUpdateQuestion(checklist.sheet_name, q.id, 'capa_action', e.target.value)}
-                          placeholder="Enter Corrective & Preventive Action (CAPA)..."
-                          className="w-full bg-white border border-indigo-200 rounded p-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                          placeholder="Enter detailed Corrective & Preventive Action (CAPA)..."
+                          className="w-full min-h-[96px] bg-white border border-indigo-200 rounded-lg p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1.5 focus:ring-[#0093dd]/40 focus:border-[#0093dd] leading-relaxed resize-y transition shadow-2xs font-normal"
                         />
                       </td>
 
