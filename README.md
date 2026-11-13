@@ -36,12 +36,16 @@ Enterprise Environmental Health, Safety & Process Safety Management (PSM) Gap As
 csa-checklist-app/
 ├── public/                 # Static brand assets (Granules logo, vector icons)
 │   └── granules_logo.png
-├── scripts/                # Data ETL pipeline, audit extractors & launchers
+├── scripts/                # Data ETL pipeline, audit extractors & Windows launchers
+│   ├── archive/            # Historical prototype artifacts
+│   │   └── legacy_csa_data.json
 │   ├── feed_real_csa_data.py
 │   ├── extract_csa.py
 │   ├── generate_multi_units.py
 │   ├── start.bat
 │   └── start-dev.bat
+├── server/                 # Production Node.js SPA web server
+│   └── server.js
 ├── src/
 │   ├── components/         # Modular React UI components
 │   │   ├── dashboard/      # Executive Landing & Maturity Benchmark
@@ -59,20 +63,21 @@ csa-checklist-app/
 │   │       ├── Sidebar.jsx
 │   │       └── ErrorBoundary.jsx
 │   ├── data/               # Multi-unit JSON datasets
-│   │   ├── multi_units_data.json
-│   │   └── legacy_csa_data.json
-│   ├── hooks/              # Custom React hooks
+│   │   └── multi_units_data.json
+│   ├── hooks/              # Custom React hooks (Excel-like resizing)
 │   │   └── useTableResize.jsx
+│   ├── styles/             # Global typography & Tailwind styling
+│   │   └── index.css
 │   ├── utils/              # Utilities & Theme definitions
 │   │   ├── excelExport.js
 │   │   └── themes.js
 │   ├── App.jsx             # Root application orchestrator
-│   ├── main.jsx            # Application entry point
-│   └── index.css           # Global typography & Tailwind styling
+│   └── main.jsx            # Application entry point
 ├── index.html              # HTML shell
-├── server.js               # Production SPA server
 ├── package.json            # Project dependencies & npm scripts
-└── vite.config.js          # Vite configuration
+├── vite.config.js          # Vite configuration
+├── README.md               # Repository documentation
+└── .gitignore              # Ignores runtime logs and node_modules
 ```
 
 ---
