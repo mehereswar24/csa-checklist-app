@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DIST_DIR = path.join(__dirname, 'dist');
-const PORT = 3000;
+const DEFAULT_PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+let currentPort = DEFAULT_PORT;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -47,29 +48,32 @@ const server = http.createServer((req, res) => {
   });
 });
 
+function startListen(port) {
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`CSA Checklist Web Application running at http://localhost:${port}/`);
+    console.log(`Serving production build from: ${DIST_DIR}`);
+  });
+}
+
 server.on('error', (err) => {
-  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Server error: ${err.stack || err}\n`);
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`Port ${currentPort} is in use, attempting port ${currentPort + 1}...`);
+    currentPort++;
+    startListen(currentPort);
+    return;
+  }
   console.error('Server error:', err);
 });
 
 process.on('uncaughtException', (err) => {
-  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Uncaught Exception: ${err.stack || err}\n`);
   console.error('Uncaught Exception:', err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Unhandled Rejection: ${reason}\n`);
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('exit', (code) => {
-  fs.appendFileSync('server_runtime.log', `[${new Date().toISOString()}] Process exit code: ${code}\n`);
-});
-
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`CSA Checklist Web Application running at http://localhost:${PORT}/`);
-  console.log(`Serving production build from: ${DIST_DIR}`);
-});
+startListen(currentPort);
 
 // Keep process running indefinitely
 const keepAliveTimer = setInterval(() => {}, 1000 * 60 * 60);
